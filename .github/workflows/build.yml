@@ -1,0 +1,137 @@
+# Build, test and validate on Mac (universal) and Windows (x64).
+# Plug-ins land as downloadable artifacts on each run.
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Rosetta (for the Intel test run)
+        run: softwareupdate --install-rosetta --agree-to-license || true
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUADRAT_INSTALL_AFTER_BUILD=OFF
+
+      - name: Build
+        run: cmake --build build -j4 --target Quadrat_AU Quadrat_VST3 Quadrat_Standalone QuadratPatchTest QuadratSnapshot
+
+      - name: Architectures
+        run: |
+          lipo -info build/Quadrat_artefacts/Release/AU/Quadrat.component/Contents/MacOS/Quadrat
+          lipo -info build/Quadrat_artefacts/Release/VST3/Quadrat.vst3/Contents/MacOS/Quadrat
+
+      - name: Engine tests (arm64)
+        run: ./build/QuadratPatchTest
+
+      - name: Engine tests (x86_64, Rosetta)
+        run: arch -x86_64 ./build/QuadratPatchTest
+
+      - name: Panel tests
+        working-directory: build
+        run: ./QuadratSnapshot_artefacts/Release/QuadratSnapshot panel.png
+
+      - name: pluginval (VST3)
+        run: |
+          curl -sSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --skip-gui-tests \
+            --validate build/Quadrat_artefacts/Release/VST3/Quadrat.vst3
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cd build/Quadrat_artefacts/Release
+          ditto -c -k --keepParent AU/Quadrat.component ../../../dist/Quadrat-mac-AU.zip
+          ditto -c -k --keepParent VST3/Quadrat.vst3 ../../../dist/Quadrat-mac-VST3.zip
+          ditto -c -k --keepParent Standalone/Quadrat.app ../../../dist/Quadrat-mac-Standalone.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quadrat-mac-universal
+          path: dist/*.zip
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # ClangCL: the vendored DSP uses GCC/Clang attributes MSVC rejects
+      - name: Configure
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T ClangCL -DQUADRAT_INSTALL_AFTER_BUILD=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --parallel --target Quadrat_VST3 Quadrat_Standalone QuadratPatchTest QuadratSnapshot
+
+      - name: Engine tests
+        run: .\build\Release\QuadratPatchTest.exe
+
+      - name: Panel tests
+        working-directory: build
+        run: .\QuadratSnapshot_artefacts\Release\QuadratSnapshot.exe panel.png
+
+      - name: pluginval (VST3)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval
+          .\pluginval\pluginval.exe --strictness-level 5 --skip-gui-tests --validate build\Quadrat_artefacts\Release\VST3\Quadrat.vst3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build\Quadrat_artefacts\Release\VST3\Quadrat.vst3 -DestinationPath dist\Quadrat-windows-VST3.zip
+          Compress-Archive -Path build\Quadrat_artefacts\Release\Standalone\Quadrat.exe -DestinationPath dist\Quadrat-windows-Standalone.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quadrat-windows-x64
+          path: dist\*.zip
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: mymindstorm/setup-emsdk@v14
+
+      - name: Build wasm
+        run: sh web/build.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Smoke test (every preset, headless)
+        working-directory: web
+        run: node smoke.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quadrat-web
+          path: |
+            web/index.html
+            web/panel.js
+            web/quadrat-worklet.js
+            web/quadrat.wasm

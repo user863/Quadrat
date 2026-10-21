@@ -1,0 +1,170 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quadrat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: #c6c7c4; font: 400 13px/1.4 Inter, system-ui, sans-serif; color: #2c2e2c;
+           display: grid; place-items: center; overflow: hidden; }
+
+    /* the plugin's 1120x660 panel, scaled to fit */
+    #stage { position: relative; aspect-ratio: 1120 / 660; width: min(100vw, calc(100vh * 1120 / 660)); }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    #search, #preset {
+        position: absolute; font-family: Inter, system-ui, sans-serif; color: #2c2e2c;
+        border: 1px solid rgba(141,143,139,0.6); border-radius: 5px; background: #eef0ed; outline: none;
+    }
+    #search:focus { border-color: #2c2e2c; }
+    #search::placeholder { color: #6d6f6b; }
+    #preset { background: #dddedb; cursor: pointer; }
+
+    #menu { position: fixed; display: none; z-index: 10; max-height: 60vh; overflow-y: auto;
+            background: #d2d3d0; border: 1px solid #8d8f8b; border-radius: 4px; padding: 3px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18); font-size: 12px; }
+    #menu div { padding: 3px 14px; cursor: pointer; white-space: nowrap; }
+    #menu div:hover { background: #2c2e2c; color: #d2d3d0; }
+
+    #start { position: absolute; inset: 0; display: grid; place-content: center; gap: 14px;
+             justify-items: center; background: rgba(198,199,196,0.96); text-align: center; z-index: 5; }
+    #start h1 { font: 400 22px Inter, sans-serif; letter-spacing: 0.08em; margin: 0; }
+    #start p { max-width: 38ch; color: #6d6f6b; margin: 0; }
+    #start button { font: 400 13px Inter, sans-serif; padding: 8px 18px; border-radius: 4px; cursor: pointer;
+                    background: #2c2e2c; color: #dddedb; border: 0; }
+</style>
+
+<div id="stage">
+    <canvas id="c"></canvas>
+    <input id="search" placeholder="search" autocomplete="off" spellcheck="false">
+    <select id="preset" title="presets"></select>
+    <div id="start">
+        <h1>quadrat</h1>
+        <p>The plugin's engine, compiled to WebAssembly and running in your browser.
+           Drag blocks from the list, patch them, play notes with A to K.</p>
+        <button id="go">start audio</button>
+    </div>
+</div>
+<div id="menu"></div>
+
+<script type="module">
+import { Panel, SEARCH } from './panel.js';
+
+const stage = document.getElementById ('stage');
+const canvas = document.getElementById ('c');
+const search = document.getElementById ('search');
+const presetSel = document.getElementById ('preset');
+const menu = document.getElementById ('menu');
+let panel = null, node = null;
+
+// overlays follow the panel's scale
+function fit()
+{
+    const r = stage.getBoundingClientRect(), s = r.width / 1120;
+    canvas.width = r.width * devicePixelRatio;
+    canvas.height = r.height * devicePixelRatio;
+    Object.assign (search.style, { left: SEARCH.x * s + 'px', top: SEARCH.y * s + 'px', width: SEARCH.w * s + 'px',
+                                   height: SEARCH.h * s + 'px', fontSize: 11 * s + 'px', padding: `0 ${8 * s}px` });
+    Object.assign (presetSel.style, { left: 150 * s + 'px', top: 24 * s + 'px', width: 160 * s + 'px',
+                                      height: 22 * s + 'px', fontSize: 10.5 * s + 'px' });
+}
+
+addEventListener ('resize', fit);
+fit();
+
+function showMenu (items, e, pick)
+{
+    menu.innerHTML = '';
+    items.forEach ((name, i) =>
+    {
+        const d = document.createElement ('div');
+        d.textContent = name;
+        d.onpointerdown = (ev) => { ev.stopPropagation(); menu.style.display = 'none'; pick (i); };
+        menu.appendChild (d);
+    });
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.style.display = 'block';
+}
+
+addEventListener ('pointerdown', (e) => { if (! menu.contains (e.target)) menu.style.display = 'none'; }, true);
+
+document.getElementById ('go').onclick = async () =>
+{
+    document.getElementById ('start').remove();
+
+    const ctx = new AudioContext();
+    await ctx.audioWorklet.addModule ('quadrat-worklet.js');
+    const wasm = await (await fetch ('quadrat.wasm')).arrayBuffer();
+    node = new AudioWorkletNode (ctx, 'quadrat', { numberOfInputs: 0, outputChannelCount: [2] });
+    node.connect (ctx.destination);
+
+    node.port.onmessage = (e) =>
+    {
+        const m = e.data;
+
+        if (m.type === 'ready')
+        {
+            const specs = JSON.parse (m.specs);
+            panel = new Panel (canvas, specs, (msg) => node.port.postMessage (msg), { search, menu: showMenu });
+
+            specs.presets.forEach ((name, i) =>
+            {
+                const o = document.createElement ('option');
+                o.value = i; o.textContent = name;
+                presetSel.appendChild (o);
+            });
+
+            requestAnimationFrame (draw);
+        }
+
+        if (m.type === 'state' && panel) panel.setState (JSON.parse (m.state));
+        if (m.type === 'rolled' && panel) panel.say (m.name);
+    };
+
+    node.port.postMessage ({ type: 'init', wasm }, [wasm]);
+};
+
+function draw()
+{
+    if (panel) panel.frame();
+    requestAnimationFrame (draw);
+}
+
+search.addEventListener ('input', () => panel && panel.filter (search.value));
+search.addEventListener ('keydown', (e) => { if (e.key === 'Escape') { search.value = ''; panel && panel.filter (''); search.blur(); } });
+
+presetSel.onchange = () =>
+{
+    if (! node) return;
+    panel.frameNext = true;
+    node.port.postMessage ({ type: 'preset', i: +presetSel.value });
+    presetSel.blur();
+};
+
+// A-K: an octave
+const keys = { a: 60, w: 61, s: 62, e: 63, d: 64, f: 65, t: 66, g: 67, y: 68, h: 69, u: 70, j: 71, k: 72 };
+const down = new Set();
+const typing = () => document.activeElement === search;
+
+addEventListener ('keydown', (e) =>
+{
+    if (! node || typing()) return;
+    if ((e.key === 'Delete' || e.key === 'Backspace') && panel) { panel.deleteSelected(); return; }
+    const n = keys[e.key];
+    if (n === undefined || down.has (n) || e.metaKey || e.ctrlKey) return;
+    down.add (n);
+    node.port.postMessage ({ type: 'note', midi: n, vel: 1, on: true });
+});
+
+addEventListener ('keyup', (e) =>
+{
+    const n = keys[e.key];
+    if (n === undefined || ! node) return;
+    down.delete (n);
+    node.port.postMessage ({ type: 'note', midi: n, on: false });
+});
+</script>

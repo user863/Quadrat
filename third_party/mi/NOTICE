@@ -1,0 +1,73 @@
+The directories beside this file contain DSP source code from the Mutable
+Instruments eurorack repository (https://github.com/pichenettes/eurorack),
+copyright Emilie Gillet (emilie.o.gillet@gmail.com).
+
+WHERE THE MIT CLAIM COMES FROM
+------------------------------
+That repository has no LICENSE file. Its README states, verbatim:
+
+    License
+    =======
+
+    Code (AVR projects): GPL3.0.
+
+    Code (STM32F projects): MIT license.
+
+    Hardware: cc-by-sa-3.0
+
+Every project vendored here — braids, clouds, elements, peaks, plaits,
+rings, warps — is an STM32F project, so all of it falls on the MIT side of
+that line. The AVR projects (Grids and Branches among them; grids/makefile
+sets MCU_NAME = 328 and every Grids source file carries a GPL-3.0 header)
+are not vendored. No hardware file is vendored either, so cc-by-sa-3.0 does
+not apply to anything here.
+
+The README is not the only evidence. All 276 files taken from those seven
+projects carry the MIT permission notice in their own header, which is the
+licence grant that actually travels with the code; so do 30 of the 32 files
+of stmlib, the shared library they all build on. The full text is in
+LICENSE-MIT beside this file. The two exceptions in stmlib are not Emilie
+Gillet's work and are listed below.
+
+    $ for f in $(find . -name '*.h' -o -name '*.cc'); do
+          grep -q "Permission is hereby granted, free of charge" $f || echo $f
+      done
+
+THE TWO FILES THAT ARE NOT EMILIE GILLET'S
+------------------------------------------
+stmlib/utils/crc32.h        Gary S. Brown, 1986 — "you may use this program,
+                            or code or tables extracted from it, as desired
+                            without restriction".
+stmlib/utils/murmurhash3.h  Austin Appleby — placed in the public domain by
+                            its author, who disclaims copyright.
+
+Both are permissive and compatible; neither is under copyleft.
+
+WHAT WAS REMOVED, AND WHY
+-------------------------
+stmlib is mixed. One file in it, stmlib/ui/event_queue.h, carries a
+GPL-3.0-or-later header rather than the MIT one — it belongs to the
+firmware's front-panel code, not to the DSP. It was vendored by the initial
+copy and has been deleted, along with the seven module ui.h headers that
+were the only things including it (braids, clouds, elements, peaks, plaits,
+rings, warps). None of them was ever reachable from a compiled translation
+unit, so no GPL code was ever linked into the plugin — but it was being
+redistributed in this source tree, which is its own obligation, and that is
+now not the case. Nothing under this directory mentions the GPL any more.
+
+TRADEMARK
+---------
+"Mutable Instruments" is a registered trademark, and the README asks that
+neither it nor the original module names appear on derived work. No block in
+Quadrat carries a Mutable name; each is named for what it does.
+Correspondence of the code, for anyone reading it:
+
+    macro    plaits        scatter  clouds
+    reson    rings         mallet   elements
+    xmod     warps         timbre   braids
+    drum     peaks
+
+Only the modules actually used are vendored. Marbles, Stages, Tides, Streams
+and Frames are MIT too and can be added the same way; their firmware-shaped
+APIs (gate-flag arrays, ramp extractors, configure-time topology) need more
+than a parameter mapping, so they are not here yet.
