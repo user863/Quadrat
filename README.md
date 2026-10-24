@@ -68,7 +68,7 @@ Search the picker by name or by block function (`filter`, `envelope`,
 
 Hovering over a block gives a quick overview of the functionality. Many plugins also have presets of their own.
 
-<img width="240" height="302" alt="image" src="https://github.com/user-attachments/assets/fc343a7e-43bb-4992-80c5-ecf96330adb1" />
+<img width="281" height="290" alt="image" src="https://github.com/user-attachments/assets/2b2b3579-37ae-4597-b362-3085cf59e447" />
 
 ## Notes and MIDI
 
