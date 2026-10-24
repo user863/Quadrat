@@ -12,7 +12,6 @@ web/quadrat.wasm
 .idea/
 *.swp
 
-# RStudio leaves these in any folder it opens
 .Rhistory
 .Rproj.user/
 
