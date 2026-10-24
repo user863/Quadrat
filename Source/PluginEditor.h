@@ -114,6 +114,7 @@ private:
 
     // header preset menu (FL et al. don't list ours)
     juce::Rectangle<float> presetsRect() const;
+    juce::String headerTitle() const;
     void showPresetMenu();
 
     // auto-zoom per block
@@ -225,6 +226,7 @@ private:
     float panX = 0.0f, panY = 0.0f;
 
     Drag drag = Drag::none;
+    int dragLink = -1;                  // host param slot while turning
     qd::Kind dragKind = qd::Kind::osc;
     int dragBlock = -1, dragKnob = -1, dragStep = -1, dragLane = 0;
     int cableFrom = -1, cableFromPort = 0;

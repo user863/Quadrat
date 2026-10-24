@@ -998,51 +998,51 @@ const char* describe (Kind k)
 {
     switch (k)
     {
-        case Kind::key:    return "Turns notes from the host into a pitch and a gate. Glide slurs one note into the next.";
-        case Kind::osc:    return "The oscillator. Four waveforms, band-limited so they do not alias; the fm input takes any signal.";
-        case Kind::noise:  return "White noise through to a dark rumble. Excites a filter, a resonator or a low-pass gate.";
-        case Kind::filter: return "Six filters in one: a Moog-style ladder, a squelchier 303 variant, state-variable low, band and high, and a Sallen-Key.";
-        case Kind::level:  return "Every kind of level in one: a gain in decibels either side of unity, a cv input that multiplies it, an offset, and an invert. An amplifier for a sound, an attenuverter for a modulation.";
-        case Kind::damage: return "Soft clipping, a wavefolder, or bits and sample rate taken away. Three ways to spoil a signal on purpose; the second knob is whatever that way needs.";
-        case Kind::mix:    return "Three inputs, one output, a level for each. The plumbing every patch needs.";
-        case Kind::lpg:    return "A low-pass gate: filter and level open together and decay on their own. Ping it for the plucky, wooden West Coast sound.";
-        case Kind::ring:   return "Ring modulation: multiplies two signals into their sum and difference. Instantly metallic and inharmonic.";
-        case Kind::env:    return "A gate in, a shape out: attack, decay, sustain and release. Set it to cycle and it free-runs instead \u2014 rising over the attack, falling over the decay \u2014 with an end-of-cycle output either way.";
-        case Kind::lfo:    return "Slow modulation in five shapes. Patch a clock into reset to lock it to the beat.";
+        case Kind::key:    return "Turns played midi notes into pitch and gate.";
+        case Kind::osc:    return "An oscillator with 4 shapes.";
+        case Kind::noise:  return "White noise can be used to excite a filter, a resonator or a low-pass gate.";
+        case Kind::filter: return "Six filters: Moog-style ladder, squelchier 303 variant, state-variable low, band and high, and Sallen-Key.";
+        case Kind::level:  return "Gain.";
+        case Kind::damage: return "Soft clipping, a wavefolder, or bits.";
+        case Kind::mix:    return "Mix.";
+        case Kind::lpg:    return "A low-pass gate: filter and level open together.";
+        case Kind::ring:   return "Ring modulation: multiplies two signals into their sum and difference.";
+        case Kind::env:    return "A gate in, a shape out: attack, decay, sustain and release.";
+        case Kind::lfo:    return "Slow modulation in five shapes.";
         case Kind::rand:   return "Sample and hold: on every clock it takes a new random voltage. Slew rounds the steps into curves.";
-        case Kind::slew:   return "Separate rise and fall times. Glide for pitch, and the way to turn steps into slopes.";
-        case Kind::quant:  return "Forces a wandering voltage onto the notes of a scale. What keeps a generative patch listenable.";
-        case Kind::clock:  return "The pulse everything else runs on, locked to the host tempo from a whole bar down to sixty-fourth triplets. The face shows where in the division it is; width sets how long the pulse stays up.";
-        case Kind::seq:    return "Eight steps, two lanes: a pitch and a control voltage for each. The switch under a step makes it a note, a rest, or a tie that slides into the one before.";
-        case Kind::delay:  return "A tempo-synced echo with tone in the feedback path. Patch its output back in for something wilder.";
-        case Kind::div:    return "Divides or multiplies a clock. Two of them at different settings is where polyrhythm starts.";
-        case Kind::logic:  return "And, or, exclusive-or and nor on two gates. Rhythms that emerge rather than get programmed.";
-        case Kind::sswitch:return "Routes one of two inputs to the output, changing over on every clock. Glide smooths the changeover.";
+        case Kind::slew:   return "Separate rise and fall times. Glide for pitch, used to turn steps into slopes.";
+        case Kind::quant:  return "Forces a wandering voltage onto the notes of a scale.";
+        case Kind::clock:  return "Gives everything its timing. You can have multiple clocks per patch.";
+        case Kind::seq:    return "Eight-step sequencer. The switch under a step makes it a note, a rest, or a tie that slides into the one before.";
+        case Kind::delay:  return "Tempo-synced echo with tone in the feedback path.";
+        case Kind::div:    return "Divides or multiplies a clock.";
+        case Kind::logic:  return "And, or, exclusive-or and nor on two gates.";
+        case Kind::sswitch:return "Routes one of two inputs to the output, changing over on every clock.";
         case Kind::turing: return "A looping shift register of random voltages. At zero it repeats forever, at full it never repeats, in between it drifts.";
         case Kind::euclid: return "Spreads a number of hits as evenly as possible across the steps. Rotate turns the pattern, chance thins it out.";
-        case Kind::input:  return "The audio coming into the plugin: a microphone, an input or a bus a send feeds. In Logic, choose it in the Side Chain menu at the top of Quadrat's window; in the standalone app, in its audio settings. It starts quiet, because a microphone near speakers howls.";
+        case Kind::input:  return "Use input for mics, sidechain from other instruments, etc. In FL Studio, load Quadrat as an effect to use this.";
         case Kind::midi:
            #if defined (__APPLE__)
-            return "A phrase of notes, played on a clock. Click its screen to load a MIDI file, or drop one onto it; from Logic you can also copy notes in the piano roll and press command-V here. Each clock pulse moves it on by one step of its switch; reset starts it from the top.";
+            return "A phrase of notes, played on a clock. Click to load a MIDI file, or drop one onto it; from Logic you can also copy notes in the piano roll and press command-V here.";
            #else
-            return "A phrase of notes, played on a clock. Click its screen to load a MIDI file, or drop one onto it. Each clock pulse moves it on by one step of its switch; reset starts it from the top.";
+            return "A phrase of notes, played on a clock. Click to load a MIDI file, or drop one onto it. Each clock pulse moves it on by one step of its switch; reset starts it from the top.";
            #endif
-        case Kind::ball:   return "A ball thrown in a box. Its height and its position across are two voltages; every time it hits the floor or a wall it sends a gate. Left alone it settles and throws itself again.";
+        case Kind::ball:   return "A ball thrown in a box.";
         case Kind::chaos:  return "A Lorenz or Rossler attractor as two voltages. Deterministic, and never quite repeating.";
-        case Kind::timbre: return "Forty-eight oscillator models on one knob, from plain waves through vowels and plucked strings to clocked noise. The display says which; some need a trigger to speak.";
+        case Kind::timbre: return "Forty-eight oscillator models on one knob, from plain waves through vowels and plucked strings to clocked noise.";
         case Kind::macro:  return "A complete synthesis voice with sixteen engines, from virtual analogue through wavetables and speech to noise and drums.";
-        case Kind::drum:   return "Analogue drum voices — bass, snare, hat and an FM drum. Feed it a trigger.";
-        case Kind::reson:  return "A bank of resonators: modal bars, sympathetic strings, a plucked string and an FM voice. Excite it with anything, or let it excite itself.";
-        case Kind::scatter:return "Granular texture processor. It records what you feed it and scatters it back as a cloud of grains, stretched, frozen or smeared.";
-        case Kind::mallet: return "Physical models struck and blown: modal bars, a string, a drum head. Patch a gate to strike it.";
-        case Kind::xmod:   return "Cross-modulates two signals — crossfade, wavefolding, ring modulation and a vocoder among them.";
-        case Kind::ctrl:   return "Four controls the host can automate, handed to the field as steady voltages. Cable one at a knob and that knob becomes automatable; the bank chooses which four of the sixteen.";
-        case Kind::pluck:  return "A short delay fed back through a damper. Hit it with a click and it rings like a string.";
-        case Kind::reverb: return "A smooth feedback-delay reverb. Size sets the decay, from under a second to twelve; mix blends it in.";
-        case Kind::out:    return "Where the patch leaves. Level and pan; several of these sum together.";
-        case Kind::comp:    return "A feed-forward compressor. The display shows how much it is holding back, a second of it at a time; patch the key input to duck one sound under another.";
-        case Kind::meter:  return "A moving-coil meter you patch through: it passes the signal on untouched and shows you what is going past. Peak or RMS, with the needle damping you want.";
-        case Kind::limit:   return "A brickwall on the output: nothing leaves above the ceiling. Wind the gain up and the display shows how hard it is working.";
+        case Kind::drum:   return "Analogue drum voices: bass, snare, hat and an FM drum.";
+        case Kind::reson:  return "Bank of resonators: modal bars, sympathetic strings, a plucked string and an FM voice.";
+        case Kind::scatter:return "Granular texture processor.";
+        case Kind::mallet: return "Physical models struck and blown: modal bars, a string, a drum head.";
+        case Kind::xmod:   return "Cross-modulates two signals: crossfade, wavefolding, ring modulation and a vocoder among them.";
+        case Kind::ctrl:   return "Controls for the host to automate.";
+        case Kind::pluck:  return "A short delay fed back through a damper. Hit it with a click it rings like a string.";
+        case Kind::reverb: return "A smooth feedback-delay reverb.";
+        case Kind::out:    return "Patch output. Can be configured to stereo.";
+        case Kind::comp:   return "Feed-forward compressor.";
+        case Kind::meter:  return "Visual representation of the level.";
+        case Kind::limit:  return "Limits the output.";
         default:           return "";
     }
 }

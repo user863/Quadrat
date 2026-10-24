@@ -98,7 +98,6 @@ QuadratEditor::QuadratEditor (QuadratProcessor& p)
 
         // show its name
         proc.setTitle (juce::String::fromUTF8 (name.c_str()));
-        say (proc.patchTitle());
         selection.clear();
         framedProgram = -1;                 // frame it
         repaint();
@@ -997,17 +996,17 @@ void QuadratEditor::paint (juce::Graphics& g)
     if (notice.isNotEmpty())
     {
         g.setColour (paint::inkSoft);
-        drawLabel (g, notice, u (240), u (37), u (9.5f), 0.0f,
+        drawLabel (g, notice, presetsRect().getRight() + u (24), u (37), u (9.5f), 0.0f,
                      juce::Justification::left, u (420));
     }
 
-    // presets menu
+    // presets menu: current patch
     {
         const auto pr = presetsRect();
         const bool hot = pr.contains (getMouseXYRelative().toFloat()) && ! touring;
         g.setColour (hot ? paint::ink : paint::inkSoft);
-        drawLabel (g, "presets", pr.getX(), u (37), u (10.5f), u (0.3f), juce::Justification::left, pr.getWidth());
-        const float tx = pr.getX() + u (46), ty = u (33);
+        drawLabel (g, headerTitle(), pr.getX(), u (37), u (10.5f), u (0.3f), juce::Justification::left, pr.getWidth());
+        const float tx = pr.getRight() - u (7), ty = u (33);
         juce::Path tri;
         tri.addTriangle (tx, ty, tx + u (7), ty, tx + u (3.5f), ty + u (4.5f));
         g.fillPath (tri);
@@ -2316,6 +2315,11 @@ void QuadratEditor::mouseDown (const juce::MouseEvent& e)
                 pushUndo();
                 drag = Drag::depth; dragBlock = b.id; dragKnob = k;
                 dragStartValue = b.depth[(std::size_t) k];
+
+                // ring is a host param too
+                dragLink = proc.linkKnob (b.id, qd::kMaxKnobs + k);
+                if (auto* lp = proc.linkParam (dragLink)) lp->beginChangeGesture();
+                proc.linkSend (dragLink, dragStartValue);
                 return;
             }
 
@@ -2387,6 +2391,10 @@ void QuadratEditor::mouseDown (const juce::MouseEvent& e)
                 dragStartValue = v;
             }
 
+            // tell the host: "last tweaked"
+            dragLink = proc.linkKnob (b->id, k);
+            if (auto* lp = proc.linkParam (dragLink)) lp->beginChangeGesture();
+            proc.linkSend (dragLink, v);
             return;
         }
 
@@ -2612,6 +2620,8 @@ void QuadratEditor::mouseDrag (const juce::MouseEvent& e)
                         juce::jlimit (0.0f, 1.0f,
                                       dragStartValue - e.getDistanceFromDragStartY() / (170.0f * fine));
                 }
+
+                proc.linkSend (dragLink, b->knob[(std::size_t) dragKnob]);
             }
             break;
 
@@ -2632,6 +2642,7 @@ void QuadratEditor::mouseDrag (const juce::MouseEvent& e)
                 const float fine = e.mods.isShiftDown() ? 4.0f : 1.0f;
                 b->depth[(std::size_t) dragKnob] =
                     juce::jlimit (0.0f, 1.0f, dragStartValue - e.getDistanceFromDragStartY() / (170.0f * fine));
+                proc.linkSend (dragLink, b->depth[(std::size_t) dragKnob]);
             }
             break;
 
@@ -2750,6 +2761,9 @@ void QuadratEditor::mouseUp (const juce::MouseEvent&)
     {
         // no rebuild
     }
+
+    if (auto* lp = proc.linkParam (dragLink)) lp->endChangeGesture();
+    dragLink = -1;
 
     drag = Drag::none;
     dragBlock = dragKnob = dragStep = draggingNote = -1;
@@ -3204,15 +3218,7 @@ bool QuadratEditor::placePhrase (std::vector<qd::MidiNote> phrase, int loop, int
         return true;
     }
 
-    int notes = 0;
-    {
-        const juce::ScopedLock sl (proc.patchLock);
-        if (const auto* b = proc.patch.find (id)) notes = (int) b->phrase.size();
-    }
-
     selection = { id };
-    const int bars = juce::jmax (1, loop / (qd::kPpq * 4));
-    say (juce::String (notes) + (notes == 1 ? " note, " : " notes, ") + juce::String (bars) + (bars == 1 ? " bar" : " bars"));
     repaint();
     return true;
 }
@@ -3336,10 +3342,32 @@ juce::Rectangle<float> QuadratEditor::faceArea (juce::Rectangle<float> r, const 
                                     : b.kind == qd::Kind::clock || b.kind == qd::Kind::ball ? 0.52f : 0.38f));
 }
 
+// tracked label width, unscaled
+static float labelWidth (const juce::String& text, float size, float tracking)
+{
+    const juce::Font f { juce::FontOptions { size } };
+    float w = -tracking;
+    for (int i = 0; i < text.length(); ++i)
+        w += juce::GlyphArrangement::getStringWidth (f, text.substring (i, i + 1)) + tracking;
+    return juce::jmax (0.0f, w);
+}
+
+// patch name, no slot number
+juce::String QuadratEditor::headerTitle() const
+{
+    auto t = proc.patchTitle();
+    if (t.length() > 3 && juce::CharacterFunctions::isDigit (t[0]) && juce::CharacterFunctions::isDigit (t[1]) && t[2] == ' ')
+        t = t.substring (3);
+    return t;
+}
+
+// right of the logo
 juce::Rectangle<float> QuadratEditor::presetsRect() const
 {
     const float s = getWidth() / layout::W;
-    return { 150.0f * s, 24.0f * s, 64.0f * s, 20.0f * s };
+    const float x = layout::M + labelWidth ("quadrat", 17.0f, 1.2f) + 28.0f;
+    const float w = labelWidth (headerTitle(), 10.5f, 0.3f) + 8.0f + 7.0f;
+    return { x * s, 24.0f * s, w * s, 20.0f * s };
 }
 
 void QuadratEditor::showPresetMenu()

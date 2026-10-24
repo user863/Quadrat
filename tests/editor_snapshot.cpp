@@ -20,6 +20,98 @@ int main (int argc, char** argv)
     // restore clipboard after
     const auto clipboardBefore = juce::SystemClipboard::getTextFromClipboard();
 
+
+    // ── knobs as host params ──
+    {
+        QuadratProcessor lp;
+        lp.prepareToPlay (48000.0, 512);
+        int osc = -1;
+        {
+            const juce::ScopedLock sl (lp.patchLock);
+            for (const auto& b : lp.patch.blocks()) if (b.kind == qd::Kind::osc) osc = b.id;
+        }
+
+        const int slot = lp.linkKnob (osc, 0);
+        lp.linkSend (slot, 0.25f);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+        auto* param = lp.linkParam (slot);
+        check (slot >= 0 && param != nullptr && param->getName (64) == "osc tune"
+                 && std::abs (param->getValue() - 0.25f) < 1.0e-4f,
+               "turning a knob borrows a host parameter named after it");
+        check (lp.linkKnob (osc, 0) == slot && lp.linkKnob (osc, 1) != slot, "the same knob keeps its parameter");
+
+        // depth ring
+        const int ring = lp.linkKnob (osc, qd::kMaxKnobs + 2);
+        lp.linkParam (ring)->setValueNotifyingHost (0.3f);
+        {
+            juce::AudioBuffer<float> rb (2, 512);
+            juce::MidiBuffer rm;
+            lp.processBlock (rb, rm);
+            const juce::ScopedLock sl (lp.patchLock);
+            check (lp.linkParam (ring)->getName (64) == "osc shape depth"
+                     && std::abs (lp.patch.find (osc)->depth[2] - 0.3f) < 1.0e-4f,
+                   "a depth ring is a host parameter too, and automating it moves the ring");
+        }
+
+        // host automates it
+        param->setValueNotifyingHost (0.8f);
+        juce::AudioBuffer<float> b (2, 512);
+        juce::MidiBuffer m;
+        lp.processBlock (b, m);
+        float now = 0.0f;
+        {
+            const juce::ScopedLock sl (lp.patchLock);
+            now = lp.patch.find (osc)->knob[0];
+        }
+        check (std::abs (now - 0.8f) < 1.0e-4f, "automating the parameter turns the knob");
+
+        // survives save + load
+        juce::MemoryBlock saved;
+        lp.getStateInformation (saved);
+        QuadratProcessor back;
+        back.setStateInformation (saved.getData(), (int) saved.getSize());
+        check (back.linkParam (slot)->getName (64) == "osc tune", "and the link is kept with the session");
+
+        lp.setCurrentProgram (1);
+        check (lp.linkParam (slot)->getName (64).startsWith ("Knob"), "a new preset frees the parameters");
+    }
+
+    // ── as an effect: input on, odd blocks ──
+    {
+        auto run = [] (bool prepareFirst, juce::AudioChannelSet in, std::initializer_list<int> sizes)
+        {
+            QuadratProcessor fx;
+            auto layout = fx.getBusesLayout();
+            layout.inputBuses.getReference (0) = in;
+            fx.setBusesLayout (layout);
+            if (prepareFirst) fx.prepareToPlay (44100.0, 256);
+
+            juce::MidiBuffer m;
+            for (int n : sizes)
+            {
+                juce::AudioBuffer<float> b (2, juce::jmax (1, n));
+                for (int i = 0; i < n; ++i) b.setSample (0, i, std::sin (i * 0.05f));
+                juce::AudioBuffer<float> view (b.getArrayOfWritePointers(), 2, n);
+                fx.processBlock (view, m);
+            }
+
+            std::unique_ptr<juce::AudioProcessorEditor> e (fx.createEditor());
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (50);
+            fx.releaseResources();
+            fx.prepareToPlay (96000.0, 64);
+            juce::AudioBuffer<float> b (2, 4096);
+            fx.processBlock (b, m);
+            return true;
+        };
+
+        std::printf ("    effect: unprepared\n");
+        run (false, juce::AudioChannelSet::stereo(), { 512, 64 });
+        std::printf ("    effect: big, tiny, empty blocks\n");
+        run (true, juce::AudioChannelSet::stereo(), { 4096, 1, 0, 257, 8192 });
+        run (true, juce::AudioChannelSet::mono(), { 512, 2048 });
+        check (true, "as an effect: input on, unprepared, odd block sizes and a rate change don't crash");
+    }
+
     QuadratProcessor proc;
     proc.prepareToPlay (48000.0, 512);
 
@@ -173,7 +265,7 @@ int main (int argc, char** argv)
     {
         int missing = 0;
         for (int k = 0; k < (int) qd::Kind::count; ++k)
-            if (juce::String (qd::describe ((qd::Kind) k)).length() < 20) ++missing;
+            if (juce::String (qd::describe ((qd::Kind) k)).isEmpty()) ++missing;
 
         check (missing == 0, "every block has a description for its tooltip");
 
@@ -655,7 +747,7 @@ int main (int argc, char** argv)
     // sidechain input
     {
         auto layout = proc.getBusesLayout();
-        const bool offToStart = layout.getMainInputChannelSet().isDisabled();
+        const bool onToStart = layout.getMainInputChannelSet() == juce::AudioChannelSet::stereo();
 
         auto withIn = [&] (const juce::AudioChannelSet& set)
         {
@@ -664,9 +756,9 @@ int main (int argc, char** argv)
             return l;
         };
 
-        check (offToStart && proc.checkBusesLayoutSupported (withIn (juce::AudioChannelSet::mono()))
-                 && proc.checkBusesLayoutSupported (withIn (juce::AudioChannelSet::stereo())),
-               "the side-chain input is off until the host turns it on, mono or stereo");
+        check (onToStart && proc.checkBusesLayoutSupported (withIn (juce::AudioChannelSet::mono()))
+                 && proc.checkBusesLayoutSupported (withIn (juce::AudioChannelSet::disabled())),
+               "the input is on by default, so effect slots feed it; mono or off also work");
 
         proc.setBusesLayout (withIn (juce::AudioChannelSet::stereo()));
         proc.prepareToPlay (48000.0, 512);

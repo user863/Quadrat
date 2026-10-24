@@ -92,10 +92,16 @@ Copy and Paste for other DAWs is WIP, but most DAWs keep their Midi Clipboard pr
 
 ## In your DAW
 
-- `ctrl` blocks expose up to sixteen controls for host automation.
+- Any knob or depth ring you turn becomes a host parameter, named after it
+  (for example "osc tune" or "osc shape depth"), so FL Studio's **Last
+  tweaked**, automation clips and controller links work on it. Up to 32 at a
+  time.
+- `ctrl` blocks expose sixteen more controls for host automation, as signals
+  you can patch anywhere. In FL Studio they are under **Browse parameters**.
 - A session saves the whole patch: blocks, cables, settings and values.
 - The `in` block brings audio into the patch: a microphone in the standalone
-  app, or a track or side-chain where the host offers one.
+  app, or a track or side-chain where the host offers one. In FL Studio,
+  load Quadrat as an effect in a mixer slot to use it.
 
 ## Shortcuts
 

@@ -4,6 +4,7 @@
 #include "../Source/Tour.h"
 #include "../Source/MidiText.h"
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 #include <string>
 #include <functional>
@@ -994,6 +995,22 @@ int main()
         std::vector<qd::MidiNote> waltz = { { 0, 960, 60, 100 }, { 2 * 960, 960, 62, 100 } };
         check (midiText::fromNotes (waltz, 3, phrase, loop) && loop == 3 * 960, "a 3/4 file loops in 3/4 bars");
         check (! midiText::fromNotes ({}, 4, phrase, loop), "an empty file is refused");
+    }
+
+
+    // ── bad host values: rate 0, block 0 ──
+    {
+        bool fine = true;
+        for (auto [sr, bs] : { std::pair<double, int> { 0.0, 0 }, { 44100.0, 0 }, { 0.0, 512 }, { 384000.0, 8192 }, { 8000.0, 1 } })
+            for (int i = 0; i < presets::count(); ++i)
+            {
+                qd::Patch p; presets::build (i, p); p.prepare (sr, bs);
+                std::vector<float> l (512), r (512), in (512, 0.3f);
+                const int len = std::min (256, std::max (32, bs));     // the processor's chunk cap
+                for (int k = 0; k < 8; ++k) { p.setInput (in.data(), in.data(), len); p.process (l.data(), r.data(), len); }
+                for (float v : l) if (! std::isfinite (v)) fine = false;
+            }
+        check (fine, "odd sample rates and block sizes neither hang nor blow up");
     }
 
     std::printf ("\n%s\n", failures == 0 ? "all checks passed"

@@ -3,7 +3,21 @@
 #include <cstring>
 #include "PluginEditor.h"
 
-juce::AudioProcessorValueTreeState::ParameterLayout QuadratProcessor::makeLayout()
+// named after its knob
+struct LinkParam : juce::AudioParameterFloat
+{
+    LinkParam (int i, const QuadratProcessor* p)
+        : juce::AudioParameterFloat (juce::ParameterID { juce::String (ids::link) + juce::String (i + 1), 1 },
+                                     "Knob " + juce::String (i + 1), juce::NormalisableRange<float> (0.0f, 1.0f), 0.5f),
+          slot (i), owner (p) {}
+
+    juce::String getName (int max) const override { return owner->linkName (slot).substring (0, max); }
+
+    const int slot;
+    const QuadratProcessor* owner;
+};
+
+juce::AudioProcessorValueTreeState::ParameterLayout QuadratProcessor::makeLayout (const QuadratProcessor* self)
 {
     juce::AudioProcessorValueTreeState::ParameterLayout l;
     l.add (std::make_unique<juce::AudioParameterFloat> (
@@ -17,14 +31,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuadratProcessor::makeLayout
                    "Ctrl " + juce::String (i),
                    juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f));
 
+    for (int i = 0; i < kLinks; ++i)
+        l.add (std::make_unique<LinkParam> (i, self));
+
     return l;
 }
 
 QuadratProcessor::QuadratProcessor()
     // sidechain, default off
-    : AudioProcessor (BusesProperties().withInput ("Side Chain", juce::AudioChannelSet::stereo(), false)
+    : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true)   // on: effect slots feed it
                                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "state", makeLayout())
+      apvts (*this, nullptr, "state", makeLayout (this))
 {
     loadPreset (0);
 }
@@ -46,9 +63,111 @@ void QuadratProcessor::setTitle (const juce::String& t)
     title = t;
 }
 
+// ── knob links ──
+juce::RangedAudioParameter* QuadratProcessor::linkParam (int slot) const
+{
+    return slot >= 0 && slot < kLinks ? apvts.getParameter (juce::String (ids::link) + juce::String (slot + 1)) : nullptr;
+}
+
+juce::String QuadratProcessor::linkName (int slot) const
+{
+    const auto& n = linkNames[(std::size_t) slot];
+    return n.isNotEmpty() ? n : "Knob " + juce::String (slot + 1);
+}
+
+// knob, or kMaxKnobs + k for its depth ring
+static juce::String linkLabel (const qd::Block& b, int knob)
+{
+    const auto& sp = qd::spec (b.kind);
+    return juce::String (sp.name) + " " + sp.knobs[(std::size_t) (knob % qd::kMaxKnobs)].name
+             + (knob >= qd::kMaxKnobs ? " depth" : "");
+}
+
+static float* linkTarget (qd::Block& b, int knob)
+{
+    return knob >= qd::kMaxKnobs ? &b.depth[(std::size_t) (knob - qd::kMaxKnobs)] : &b.knob[(std::size_t) knob];
+}
+
+int QuadratProcessor::linkKnob (int blockId, int knob)
+{
+    const juce::ScopedLock sl (patchLock);
+    const auto* b = patch.find (blockId);
+    if (b == nullptr || knob < 0 || knob >= 2 * qd::kMaxKnobs) return -1;
+
+    int pick = -1;
+    for (int i = 0; i < kLinks && pick < 0; ++i)
+        if (links[(std::size_t) i].block == blockId && links[(std::size_t) i].knob == knob) pick = i;
+
+    if (pick < 0)
+    {
+        // free or gone, else oldest
+        for (int i = 0; i < kLinks && pick < 0; ++i)
+            if (patch.find (links[(std::size_t) i].block) == nullptr) pick = i;
+
+        if (pick < 0)
+        {
+            pick = 0;
+            for (int i = 1; i < kLinks; ++i)
+                if (links[(std::size_t) i].used < links[(std::size_t) pick].used) pick = i;
+        }
+
+        auto& l = links[(std::size_t) pick];
+        l.block = blockId;
+        l.knob = knob;
+        linkNames[(std::size_t) pick] = linkLabel (*b, knob);
+        triggerAsyncUpdate();
+    }
+
+    links[(std::size_t) pick].used = ++linkClock;
+    return pick;
+}
+
+void QuadratProcessor::linkSend (int slot, float value)
+{
+    if (auto* p = linkParam (slot))
+    {
+        p->setValueNotifyingHost (value);
+        sent[(std::size_t) slot] = value;      // after: audio sees no change
+    }
+}
+
+void QuadratProcessor::applyLinks()
+{
+    for (int i = 0; i < kLinks; ++i)
+    {
+        const auto& l = links[(std::size_t) i];
+        if (l.block < 0) continue;
+
+        const float v = linkParam (i)->getValue();
+        if (std::abs (v - sent[(std::size_t) i].load()) < 1.0e-5f) continue;
+
+        // host moved it
+        sent[(std::size_t) i] = v;
+        if (auto* b = patch.find (l.block)) *linkTarget (*b, l.knob) = v;
+    }
+}
+
+void QuadratProcessor::clearLinks()
+{
+    for (int i = 0; i < kLinks; ++i)
+    {
+        links[(std::size_t) i] = {};
+        linkNames[(std::size_t) i].clear();
+        sent[(std::size_t) i] = linkParam (i)->getValue();
+    }
+
+    triggerAsyncUpdate();
+}
+
+void QuadratProcessor::handleAsyncUpdate()
+{
+    updateHostDisplay (ChangeDetails().withParameterInfoChanged (true));
+}
+
 void QuadratProcessor::loadPreset (int index)
 {
     const juce::ScopedLock sl (patchLock);
+    clearLinks();
     current = index;
     title.clear();                        // preset names fixed
     presets::build (index, patch);
@@ -159,6 +278,7 @@ void QuadratProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     // tap tempo when stopped
     if (! playing && tapped > 0.0) bpm = tapped;
 
+    applyLinks();
     patch.setTransport (bpm, ppq, playing);
 
     // sample-accurate MIDI: split at events, never past the prepared size
@@ -267,6 +387,14 @@ void QuadratProcessor::getStateInformation (juce::MemoryBlock& dest)
         v.setProperty ("toKnob", c.toKnob, nullptr);
         field.appendChild (v, nullptr);
     }
+
+    // slot:block:knob
+    juce::StringArray linked;
+    for (int i = 0; i < kLinks; ++i)
+        if (links[(std::size_t) i].block >= 0 && patch.find (links[(std::size_t) i].block) != nullptr)
+            linked.add (juce::String (i) + ":" + juce::String (links[(std::size_t) i].block) + ":"
+                        + juce::String (links[(std::size_t) i].knob));
+    field.setProperty ("links", linked.joinIntoString (" "), nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, dest);
@@ -436,6 +564,19 @@ void QuadratProcessor::setStateInformation (const void* data, int size)
         t.y = v.getProperty ("y", 0);
         t.text = v.getProperty ("text", juce::String()).toString().toStdString();
         patch.notes().push_back (t);
+    }
+
+    clearLinks();
+    for (const auto& word : juce::StringArray::fromTokens (field.getProperty ("links", "").toString(), " ", ""))
+    {
+        const auto f = juce::StringArray::fromTokens (word, ":", "");
+        const int slot = f[0].getIntValue(), knob = f[2].getIntValue();
+        const auto to = idMap.find (f[1].getIntValue());
+        const auto* b = to != idMap.end() ? patch.find (to->second) : nullptr;
+        if (f.size() != 3 || b == nullptr || slot < 0 || slot >= kLinks || knob < 0 || knob >= 2 * qd::kMaxKnobs) continue;
+
+        links[(std::size_t) slot] = { to->second, knob, ++linkClock };
+        linkNames[(std::size_t) slot] = linkLabel (*b, knob);
     }
 
     if (! refused.isEmpty())

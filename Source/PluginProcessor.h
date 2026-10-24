@@ -9,9 +9,11 @@ namespace ids
 {
     inline constexpr auto level = "level";
     inline constexpr auto ctrl  = "ctrl";     // ctrl1 … ctrl16
+    inline constexpr auto link  = "knob";     // knob1 … knob32, borrowed by the ui
 }
 
-class QuadratProcessor : public juce::AudioProcessor
+class QuadratProcessor : public juce::AudioProcessor,
+                         private juce::AsyncUpdater
 {
 public:
     QuadratProcessor();
@@ -71,8 +73,24 @@ public:
     // dropped buffers
     int droppedBlocks() const { return dropped.load(); }
 
+    // ui knobs as host params ("last tweaked")
+    static constexpr int kLinks = 32;
+    int linkKnob (int blockId, int knob);            // claims a slot; kMaxKnobs + k = depth ring
+    void linkSend (int slot, float value);           // ui moved it
+    juce::RangedAudioParameter* linkParam (int slot) const;
+    juce::String linkName (int slot) const;
+
 private:
-    static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();
+    static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout (const QuadratProcessor*);
+
+    struct Link { int block = -1, knob = -1; juce::uint32 used = 0; };
+    std::array<Link, kLinks> links;
+    std::array<std::atomic<float>, kLinks> sent {};
+    std::array<juce::String, kLinks> linkNames;
+    juce::uint32 linkClock = 0;
+    void applyLinks();                    // audio, locked
+    void clearLinks();
+    void handleAsyncUpdate() override;    // names to host
 
     std::atomic<float> level { 0.0f };
     std::atomic<int> dropped { 0 };

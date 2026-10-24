@@ -241,17 +241,17 @@ using K = qd::Kind;
 
 static const char* kNames[] =
 {
-    "01 Start",             "02 Ladder Bass",      "03 Acid Line",        "04 Turing Drift",
-    "05 Euclid Techno",     "06 Weather Vane",     "07 Hands Free",       "08 Breathing Grain",
-    "09 Chaos Bench",  "10 Ring Metal",       "11 Crush Loop",       "12 Slew Glide",
-    "13 Switch Canon",      "14 Logic Rhythm",     "15 Drone Cell",       "16 Chaos FM",
-    "17 S&H Burble",        "18 Function Sweep",   "19 Feedback Tank",    "20 Generative Piece",
-    "21 Techno Kick",       "22 Techno Stack",     "23 Acid Drive",       "24 Psych Resonator",
-    "25 Granular Bloom",    "26 Mallet Garden",    "27 Ring Cascade",     "28 Chance Machine",
-    "29 Tape Loop",         "30 Bell Choir",        "31 Four Hands",       "32 Easy Loop",
-    "33 Simple Patch",      "34 Glacier Chord",    "35 Shifting Choir",   "36 Sympathetic Fog",
-    "37 Phase Canon",       "38 Glass Rain"
+    "01 Turing Drift",     "02 Acid Line",        "03 Euclid Techno",    "04 Hands Free",
+    "05 Chaos Bench",      "06 Crush Loop",       "07 Drone Cell",       "08 Function Sweep",
+    "09 Feedback Tank",    "10 Generative Piece", "11 Easy Loop",        "12 Techno Kick",
+    "13 Techno Stack",     "14 Granular Bloom",   "15 Chance Machine",   "16 Muted Buzz",
+    "17 Running Wood",     "18 Warm Skins",       "19 Strange Kick",     "20 Glacier Chord",
+    "21 Shifting Choir",   "22 Phase Canon",      "23 Four Hands"
 };
+
+// menu slot -> build case
+static const int kOrder[] = { 3, 2, 4, 6, 8, 10, 14, 17, 18, 19, 31, 20, 21, 24, 27, 38, 39, 40, 41, 33, 34, 36, 30 };
+static_assert (sizeof (kOrder) == sizeof (kNames) / sizeof (kNames[0]) * sizeof (int), "one case per name");
 
 int count() { return (int) (sizeof (kNames) / sizeof (kNames[0])); }
 
@@ -699,66 +699,10 @@ void build (int index, qd::Patch& p)
 {
     p.clear();
 
-    switch (index)
+    const int which = kOrder[index >= 0 && index < count() ? index : 0];
+
+    switch (which)
     {
-        default:
-        case 0:   // Start
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 3);
-
-            const int clk = r0.add (K::clock), seq = r0.add (K::seq);
-            const int osc = r0.add (K::osc), flt = r0.add (K::filter);
-            const int vca = r0.add (K::level), rev = r0.add (K::reverb);
-            r0.add (K::out);
-
-            r1.skip (2);
-            const int env = r1.add (K::env);
-            r1.skip (3);
-            const int lfo = r1.add (K::lfo);
-
-            // seq, osc, env, lfo
-            p.connect (seq, 0, osc, 0);      // pitch
-            p.connect (seq, 1, env, 0);      // gate
-            p.connect (env, 0, vca, 1);      // shape
-            p.connect (seq, 2, flt, 0, true);   // lane 2 -> brightness
-            p.connect (lfo, 0, flt, 1);      // lfo sweep
-
-            set (p, clk, 0.5f, -1.0f, -1.0f, 5);
-            setk (p, seq, { 0.4f, 0.3f });
-            if (auto* b = p.find (osc)) blockPresets::apply (K::osc, 4, *b);   // soft tri
-            setk (p, osc, { 0.42f });
-            setk (p, flt, { 0.42f, 0.35f, 0.55f }, 0);
-            setk (p, env, { 0.02f, 0.3f, 0.25f });
-            setk (p, lfo, { 0.12f, 0.4f }, 0);
-            setk (p, rev, { 0.5f, 0.22f });
-
-            steps (p, seq, { 0.5f, 0.56f, 0.5f, 0.62f, 0.44f, 0.5f, 0.68f, 0.56f });
-            lane2 (p, seq, { 0.7f, 0.3f, 0.5f, 0.85f, 0.2f, 0.45f, 0.9f, 0.4f });
-            modes (p, seq, { 0, 0, 2, 0, 1, 0, 0, 2 });   // x x - x .
-
-            if (auto* b = p.find (seq)) b->drawer = false;
-            break;
-        }
-
-        case 1:   // Ladder Bass
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 2);
-            const int key = r0.add (K::key), osc = r0.add (K::osc);
-            const int flt = r0.add (K::filter), vca = r0.add (K::level);
-            const int drv = r0.add (K::damage); r0.add (K::out);
-            const int env = r1.add (K::env), att = r1.add (K::level);
-            p.connect (key, 1, env, 0); p.connect (env, 0, vca, 1);
-            p.connect (env, 0, att, 0); p.connect (att, 0, flt, 1);
-            set (p, osc, 0.4f, 0.5f, 0.5f, 0);
-            set (p, flt, 0.28f, 0.5f, 0.62f, 0);
-            set (p, env, 0.02f, 0.3f, 0.25f);
-            set (p, att, 0.85f, 0.5f);
-            set (p, drv, 0.25f, 0.5f, -1.0f, 0);
-            break;
-        }
-
         case 2:   // Acid Line
         {
             Row r0 (p, 0);
@@ -824,37 +768,6 @@ void build (int index, qd::Patch& p)
             break;
         }
 
-        case 5:   // Weather Vane
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 3);
-            const int osc = r0.add (K::osc), drv = r0.add (K::damage);
-            const int flt = r0.add (K::filter), dly = r0.add (K::delay);
-            const int rev = r0.add (K::reverb); r0.add (K::out);
-            const int clk = r1.add (K::clock); r1.skip();
-            const int lf1 = r1.add (K::lfo);   r1.skip();
-            const int lf2 = r1.add (K::lfo);   r1.skip();
-            const int rnd = r1.add (K::rand);
-
-            p.connect (clk, 0, lf1, 0);
-            p.connect (clk, 0, rnd, 0);
-            p.connect (lf1, 0, drv, 0, true);      // amount
-            p.connect (lf2, 0, dly, 0, true);      // feedback
-            p.connect (rnd, 0, osc, 2, true);      // shape
-
-            set (p, clk, 0.5f, -1.0f, -1.0f, 5);
-            setk (p, osc, { 0.4f, 0.5f, 0.4f }, 0);
-            setk (p, drv, { 0.3f, 0.5f }, 1);
-            setk (p, flt, { 0.58f, 0.3f, 0.5f }, 0);
-            setk (p, dly, { 0.3f, 0.34f, 0.7f }, 1);
-            setk (p, rev, { 0.6f, 0.3f });
-            setk (p, lf1, { 0.3f, 0.5f }, 0);
-            setk (p, lf2, { 0.06f, 0.4f }, 0);
-            setk (p, rnd, { 0.5f, 0.4f });
-            drawers (p, { drv, dly, osc });
-            break;
-        }
-
         case 6:   // Hands Free
         {
             Row r0 (p, 0);
@@ -886,33 +799,6 @@ void build (int index, qd::Patch& p)
             break;
         }
 
-        case 7:   // Breathing Grain
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 3);
-            const int osc = r0.add (K::osc), sct = r0.add (K::scatter);
-            const int rev = r0.add (K::reverb); r0.add (K::out);
-            const int clk = r1.add (K::clock); r1.skip();
-            const int lf1 = r1.add (K::lfo);   r1.skip();
-            const int lf2 = r1.add (K::lfo);   r1.skip();
-            const int rnd = r1.add (K::rand);
-
-            p.connect (clk, 0, rnd, 0);
-            p.connect (lf1, 0, sct, 0, true);      // position
-            p.connect (lf2, 0, sct, 1, true);      // size
-            p.connect (rnd, 0, sct, 3, true);      // texture
-
-            set (p, clk, 0.4f, -1.0f, -1.0f, 3);
-            setk (p, osc, { 0.36f, 0.5f, 0.6f }, 2);
-            setk (p, sct, { 0.4f, 0.5f, 0.55f, 0.5f, 0.85f, 0.0f }, 0);
-            setk (p, rev, { 0.7f, 0.35f });
-            setk (p, lf1, { 0.08f, 0.45f }, 0);
-            setk (p, lf2, { 0.14f, 0.35f }, 1);
-            setk (p, rnd, { 0.45f, 0.6f });
-            drawers (p, { sct });
-            break;
-        }
-
         case 8:   // Chaos Bench
         {
             Row r0 (p, 0);
@@ -938,25 +824,6 @@ void build (int index, qd::Patch& p)
             break;
         }
 
-        case 9:   // Ring Metal
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 2);
-            const int o1 = r0.add (K::osc), rng = r0.add (K::ring);
-            const int lpg = r0.add (K::lpg), rev = r0.add (K::reverb);
-            r0.add (K::out);
-            const int o2 = r1.add (K::osc), clk = r1.add (K::clock);
-            p.connect (o2, 0, rng, 1);
-            p.connect (clk, 0, lpg, 1);
-            set (p, o1, 0.5f, 0.5f, 0.5f, 3);
-            set (p, o2, 0.62f, 0.54f, 0.5f, 3);
-            set (p, rng, 1.0f);
-            set (p, lpg, 0.5f, 0.8f, -1.0f, 0);
-            set (p, clk, 0.5f, -1.0f, -1.0f, 3);
-            set (p, rev, 0.75f, 0.4f);
-            break;
-        }
-
         case 10:  // Crush Loop
         {
             Row r0 (p, 0);
@@ -974,71 +841,6 @@ void build (int index, qd::Patch& p)
             set (p, env, 0.01f, 0.2f, 0.1f);
             set (p, dly, 0.45f, 0.35f, 0.6f, 1);
             steps (p, seq, { 0.5f, 0.58f, 0.5f, 0.66f, 0.42f, 0.5f, 0.62f, 0.5f });
-            break;
-        }
-
-        case 11:  // Slew Glide
-        {
-            Row r0 (p, 0);
-            const int clk = r0.add (K::clock), seq = r0.add (K::seq);
-            const int slw = r0.add (K::slew), osc = r0.add (K::osc);
-            const int flt = r0.add (K::filter), lpg = r0.add (K::lpg);
-            r0.add (K::out);
-            p.connect (seq, 1, lpg, 1);
-            set (p, clk, 0.5f, -1.0f, -1.0f, 4);
-            set (p, slw, 0.42f, 0.42f);
-            set (p, osc, 0.42f, 0.5f, 0.5f, 0);
-            set (p, flt, 0.42f, 0.45f, 0.5f, 0);
-            set (p, lpg, 0.5f, 0.85f, -1.0f, 0);
-            steps (p, seq, { 0.5f, 0.72f, 0.4f, 0.6f, 0.5f, 0.34f, 0.66f, 0.46f });
-            break;
-        }
-
-        case 12:  // Switch Canon
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 2);
-            const int clk = r0.add (K::clock), dv = r0.add (K::div);
-            const int sw = r0.add (K::sswitch), osc = r0.add (K::osc);
-            const int lpg = r0.add (K::lpg), rev = r0.add (K::reverb);
-            r0.add (K::out);
-            const int s1 = r1.add (K::seq), s2 = r1.add (K::turing);
-            p.connect (clk, 0, s1, 0);
-            p.connect (clk, 0, s2, 0);
-            p.connect (s1, 0, sw, 1);
-            p.connect (s2, 0, sw, 2);
-            p.connect (dv, 0, sw, 0);
-            p.connect (clk, 0, lpg, 1);
-            set (p, clk, 0.5f, -1.0f, -1.0f, 5);
-            set (p, dv, 0.2f, -1.0f, -1.0f, 0);
-            set (p, sw, 0.05f);
-            set (p, osc, 0.5f, 0.5f, 0.5f, 2);
-            set (p, lpg, 0.3f, 0.8f, -1.0f, 0);
-            set (p, s2, 0.18f, 0.45f, -1.0f, 3);
-            set (p, rev, 0.6f, 0.3f);
-            steps (p, s1, { 0.5f, 0.56f, 0.44f, 0.62f, 0.5f, 0.38f, 0.56f, 0.5f });
-            break;
-        }
-
-        case 13:  // Logic Rhythm
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 2);
-            const int clk = r0.add (K::clock), d1 = r0.add (K::div);
-            const int lgc = r0.add (K::logic), lpg = r0.add (K::lpg);
-            const int dly = r0.add (K::delay); r0.add (K::out);
-            const int d2 = r1.add (K::div), noi = r1.add (K::noise);
-            p.connect (clk, 0, d2, 0);
-            p.connect (d2, 0, lgc, 1);
-            p.connect (noi, 0, lpg, 0);
-            p.connect (lgc, 0, lpg, 1);
-            set (p, clk, 0.5f, -1.0f, -1.0f, 5);
-            set (p, d1, 0.13f, -1.0f, -1.0f, 0);
-            set (p, d2, 0.2f, -1.0f, -1.0f, 0);
-            set (p, lgc, 1.0f, -1.0f, -1.0f, 2);
-            set (p, noi, 0.6f);
-            set (p, lpg, 0.12f, 0.8f, -1.0f, 0);
-            set (p, dly, 0.5f, 0.3f, 0.55f, 0);
             break;
         }
 
@@ -1062,47 +864,6 @@ void build (int index, qd::Patch& p)
             set (p, flt, 0.4f, 0.55f, 0.62f, 5);
             set (p, lfo, 0.1f, 0.3f, -1.0f, 0);
             set (p, rev, 0.95f, 0.5f);
-            break;
-        }
-
-        case 15:  // Chaos FM
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 2);
-            const int cha = r0.add (K::chaos), att = r0.add (K::level);
-            const int osc = r0.add (K::osc), flt = r0.add (K::filter);
-            const int lpg = r0.add (K::lpg); r0.add (K::out);
-            const int clk = r1.add (K::clock);
-            p.connect (att, 0, osc, 1);
-            p.connect (cha, 1, flt, 1);
-            p.connect (clk, 0, lpg, 1);
-            set (p, cha, 0.55f, 0.45f, -1.0f, 1);
-            set (p, att, 0.62f, 0.5f);
-            set (p, osc, 0.45f, 0.5f, 0.5f, 3);
-            set (p, flt, 0.5f, 0.4f, 0.56f, 0);
-            set (p, lpg, 0.4f, 0.8f, -1.0f, 0);
-            set (p, clk, 0.5f, -1.0f, -1.0f, 4);
-            break;
-        }
-
-        case 16:  // S&H Burble
-        {
-            Row r0 (p, 0);
-            Row r1 (p, 2);
-            const int noi = r0.add (K::noise), rnd = r0.add (K::rand);
-            const int qnt = r0.add (K::quant), osc = r0.add (K::osc);
-            const int flt = r0.add (K::filter), lpg = r0.add (K::lpg);
-            r0.add (K::out);
-            const int clk = r1.add (K::clock);
-            p.connect (clk, 0, rnd, 0);
-            p.connect (clk, 0, lpg, 1);
-            set (p, noi, 0.8f);
-            set (p, rnd, 0.75f, 0.0f);
-            set (p, qnt, 0.5f, 0.55f, -1.0f, 3);
-            set (p, osc, 0.5f, 0.5f, 0.5f, 1);
-            set (p, flt, 0.48f, 0.5f, 0.5f, 0);
-            set (p, lpg, 0.22f, 0.8f, -1.0f, 0);
-            set (p, clk, 0.5f, -1.0f, -1.0f, 5);
             break;
         }
 
@@ -1197,65 +958,6 @@ void build (int index, qd::Patch& p)
             break;
         }
 
-        case 22:  // Acid Drive
-        {
-            Row voice (p, 0), mod (p, 3), clock (p, 6);
-            const int osc = voice.add (K::osc);
-            const int flt = voice.add (K::filter);
-            const int drv = voice.add (K::damage);
-            const int vca = voice.add (K::level);
-            voice.add (K::out);
-            const int env = mod.add (K::env);
-            const int att = mod.add (K::level);
-            const int seq = mod.add (K::seq);
-            const int clk = clock.add (K::clock);
-
-            p.connect (clk, 0, seq, 0);
-            p.connect (seq, 0, osc, 0);
-            p.connect (seq, 1, env, 0);
-            p.connect (env, 0, vca, 1);
-            p.connect (env, 0, att, 0);
-            p.connect (att, 0, flt, 1);
-
-            setk (p, osc, { 0.42f, 0.5f, 0.35f }, 1);
-            setk (p, flt, { 0.18f, 0.78f, 0.68f }, 1);
-            setk (p, drv, { 0.45f, 0.5f }, 1);
-            setk (p, env, { 0.01f, 0.14f, 0.0f });
-            setk (p, att, { 0.95f, 0.5f });
-            setk (p, clk, { 0.5f }, 5);
-            steps (p, seq, { 0.5f, 0.5f, 0.62f, 0.5f, 0.44f, 0.68f, 0.5f, 0.56f });
-            break;
-        }
-
-        case 23:  // Psych Resonator
-        {
-            Row voice (p, 0), mod (p, 3), clock (p, 6);
-            const int tim = voice.add (K::macro);
-            const int res = voice.add (K::reson);
-            const int sca = voice.add (K::scatter);
-            voice.add (K::out);
-            const int tur = mod.add (K::turing);
-            const int qnt = mod.add (K::quant);
-            const int lfo = mod.add (K::lfo);
-            const int clk = clock.add (K::clock);
-
-            p.connect (clk, 0, tur, 0);
-            p.connect (tur, 0, qnt, 0);
-            p.connect (qnt, 0, tim, 0);
-            p.connect (qnt, 0, res, 1);
-            p.connect (clk, 0, res, 2);
-            p.connect (lfo, 0, sca, 2);
-
-            setk (p, tim, { 0.5f, 0.6f, 0.45f }, 24);      // plucked
-            setk (p, res, { 0.4f, 0.62f, 0.5f, 0.35f, 0.5f }, 1);
-            setk (p, sca, { 0.45f, 0.6f, 0.5f, 0.55f, 0.7f, 0.0f }, 0);
-            setk (p, tur, { 0.12f, 0.5f }, 4);
-            setk (p, qnt, { 0.5f, 0.4f }, 3);
-            setk (p, lfo, { 0.1f, 0.25f }, 0);
-            setk (p, clk, { 0.5f }, 4);
-            break;
-        }
-
         case 24:  // Granular Bloom
         {
             Row voice (p, 0), mod (p, 3), clock (p, 6);
@@ -1280,59 +982,6 @@ void build (int index, qd::Patch& p)
             setk (p, slw, { 0.55f, 0.55f });
             setk (p, qnt, { 0.5f, 0.35f }, 3);
             setk (p, clk, { 0.5f }, 3);
-            break;
-        }
-
-        case 25:  // Mallet Garden
-        {
-            Row voice (p, 0), mod (p, 3), clock (p, 6);
-            const int mal = voice.add (K::mallet);
-            const int eq  = voice.add (K::filter);
-            const int rev = voice.add (K::reverb);
-            voice.add (K::out);
-            const int euc = mod.add (K::euclid);
-            const int tur = mod.add (K::turing);
-            const int qnt = mod.add (K::quant);
-            const int clk = clock.add (K::clock);
-
-            p.connect (clk, 0, euc, 0);
-            p.connect (euc, 0, mal, 2);
-            p.connect (euc, 0, tur, 0);
-            p.connect (tur, 0, qnt, 0);
-            p.connect (qnt, 0, mal, 1);
-
-            setk (p, mal, { 0.25f, 0.6f, 0.45f, 0.6f, 0.5f, 0.35f }, 0);
-            setk (p, eq, { 0.6f, 0.25f, 0.5f });
-            setk (p, rev, { 0.75f, 0.35f });
-            setk (p, euc, { 0.34f, 0.12f, 0.85f }, 2);
-            setk (p, tur, { 0.15f, 0.42f }, 4);
-            setk (p, qnt, { 0.5f, 0.4f }, 3);
-            setk (p, clk, { 0.5f }, 5);
-            break;
-        }
-
-        case 26:  // Ring Cascade
-        {
-            Row voice (p, 0), second (p, 3), clock (p, 6);
-            const int t1 = voice.add (K::macro);
-            const int xm = voice.add (K::xmod);
-            const int eq = voice.add (K::filter);
-            const int out = voice.add (K::out);
-            const int t2 = second.add (K::macro);
-            const int lpg = second.add (K::lpg);
-            const int clk = clock.add (K::clock);
-
-            p.connect (t2, 0, xm, 1);
-            p.connect (clk, 0, lpg, 1);
-            p.connect (xm, 0, lpg, 0);
-
-            setk (p, t1, { 0.5f, 0.55f, 0.5f }, 20);   // ring mod
-            setk (p, t2, { 0.62f, 0.4f, 0.6f }, 5);    // sine tri
-            setk (p, xm, { 0.55f, 0.6f, 0.8f, 0.6f, 0.7f }, 2);
-            setk (p, eq, { 0.6f, 0.25f, 0.5f });
-            setk (p, lpg, { 0.45f, 0.85f }, 0);
-            setk (p, clk, { 0.5f }, 4);
-            setk (p, out, { 0.6f, 0.5f });
             break;
         }
 
@@ -1372,67 +1021,6 @@ void build (int index, qd::Patch& p)
             setk (p, qnt, { 0.5f, 0.45f }, 3);
             setk (p, dv, { 0.07f }, 0);
             setk (p, clk, { 0.5f }, 5);
-            break;
-        }
-
-        case 28:  // Tape Loop
-        {
-            Row voice (p, 0), mod (p, 3), clock (p, 6);
-            const int osc = voice.add (K::osc);
-            const int lpg = voice.add (K::lpg);
-            const int sca = voice.add (K::scatter);
-            const int dly = voice.add (K::delay);
-            voice.add (K::out);
-            const int seq = mod.add (K::seq);
-            const int cru = mod.add (K::damage);
-            const int clk = clock.add (K::clock);
-
-            p.connect (clk, 0, seq, 0);
-            p.connect (seq, 0, osc, 0);
-            p.connect (seq, 1, lpg, 1);
-            p.connect (dly, 0, cru, 0);
-            p.connect (cru, 0, sca, 1);        // round it goes
-
-            setk (p, osc, { 0.45f, 0.5f, 0.5f }, 2);
-            setk (p, lpg, { 0.3f, 0.8f }, 0);
-            setk (p, sca, { 0.5f, 0.65f, 0.5f, 0.6f, 0.75f, 0.0f }, 2);   // looping delay
-            setk (p, dly, { 0.55f, 0.45f, 0.55f }, 1);
-            setk (p, cru, { 0.5f, 0.5f });
-            setk (p, clk, { 0.5f }, 5);
-            steps (p, seq, { 0.5f, 0.6f, 0.44f, 0.56f, 0.5f, 0.66f, 0.4f, 0.54f });
-            break;
-        }
-
-        case 29:  // Bell Choir
-        {
-            Row voice (p, 0), mod (p, 3), clock (p, 6);
-            const int noi = voice.add (K::noise);
-            const int vca = voice.add (K::level);
-            const int res = voice.add (K::reson);
-            const int rev = voice.add (K::reverb);
-            voice.add (K::out);
-            const int fun = mod.add (K::env);
-            const int rnd = mod.add (K::rand);
-            const int qnt = mod.add (K::quant);
-            const int slw = mod.add (K::slew);
-            const int clk = clock.add (K::clock);
-
-            p.connect (clk, 0, fun, 0);
-            p.connect (fun, 0, vca, 1);
-            p.connect (clk, 0, rnd, 0);
-            p.connect (rnd, 0, qnt, 0);
-            p.connect (qnt, 0, slw, 0);
-            p.connect (slw, 0, res, 1);
-            p.connect (clk, 0, res, 2);
-
-            setk (p, noi, { 0.85f });
-            setk (p, res, { 0.55f, 0.7f, 0.35f, 0.4f, 0.5f }, 0);
-            setk (p, rev, { 0.9f, 0.5f });
-            setk (p, fun, { 0.0f, 0.04f, 0.25f }, 0);
-            setk (p, rnd, { 0.7f, 0.0f });
-            setk (p, qnt, { 0.55f, 0.55f }, 3);
-            setk (p, slw, { 0.1f, 0.1f });
-            setk (p, clk, { 0.5f }, 3);
             break;
         }
 
@@ -1623,37 +1211,6 @@ void build (int index, qd::Patch& p)
             break;
         }
 
-        case 32:   // Simple Patch
-        {
-            // textbook first patch
-            Row voice (p, 0), mod (p, 4);
-
-            const int clk = voice.add (K::clock), sq = voice.add (K::seq);
-            const int osc = voice.add (K::osc), amp = voice.add (K::level);
-            const int flt = voice.add (K::filter);
-            const int out = voice.add (K::out);
-
-            mod.skip (4);
-            const int env = mod.add (K::env);
-            mod.skip();
-            const int lfo = mod.add (K::lfo);
-
-            p.connect (sq, 1, env, 0);          // gate out → envelope
-            p.connect (env, 0, amp, 1);         // envelope → amplifier cv
-            p.connect (clk, 0, lfo, 0);         // lfo synced
-            p.connect (lfo, 0, flt, 1);         // lfo -> cutoff
-
-            set (p, clk, 0.5f, -1.0f, -1.0f, 3);
-            if (auto* b = p.find (sq)) blockPresets::apply (K::seq, 8, *b);   // arp up
-            setk (p, osc, { 0.45f, 0.5f, 0.5f }, 3);                     // sine
-            setk (p, amp, { 0.5f, 1.0f, 0.5f, 0.0f }, 0);
-            setk (p, flt, { 0.5f, 0.35f, 0.7f }, 0);
-            setk (p, env, { 0.02f, 0.3f, 0.3f });
-            setk (p, lfo, { 0.12f, 0.6f }, 2);                           // saw
-            setk (p, out, { 0.7f, 0.5f });
-            break;
-        }
-
         case 33:  // Glacier Chord
         {
             Row r0 (p, 0), r1 (p, 2), r2 (p, 4), r3 (p, 6);
@@ -1740,38 +1297,6 @@ void build (int index, qd::Patch& p)
             break;
         }
 
-        case 35:  // Sympathetic Fog
-        {
-            Row r0 (p, 0), r1 (p, 2);
-
-            const int noi = r0.add (K::noise), amp = r0.add (K::level);
-            const int res = r0.add (K::reson), sca = r0.add (K::scatter);
-            const int rev = r0.add (K::reverb);
-            r0.add (K::out);
-
-            // strange-attractor tuning
-            const int cha = r1.add (K::chaos), qnt = r1.add (K::quant);
-            const int slw = r1.add (K::slew);
-            r1.skip();
-            const int lfo = r1.add (K::lfo);
-
-            p.connect (slw, 0, res, 1);
-            p.connect (res, 1, sca, 1);          // even -> right
-            p.connect (lfo, 0, res, 0, true);    // structure drifts
-            drawers (p, { res });
-
-            setk (p, noi, { 0.18f });
-            setk (p, amp, { 0.85f });
-            setk (p, res, { 0.55f, 0.35f, 0.78f, 0.4f, 1.0f }, 1);   // sympathetic, 4 voices
-            setk (p, sca, { 0.5f, 0.8f, 0.55f, 0.75f, 0.5f });
-            setk (p, rev, { 0.95f, 0.45f });
-            setk (p, cha, { 0.06f, 0.3f }, 1);     // rossler
-            setk (p, qnt, { 0.5f, 0.4f }, 3);      // penta
-            setk (p, slw, { 0.8f, 0.8f });
-            setk (p, lfo, { 0.08f, 0.3f }, 1);
-            break;
-        }
-
         case 36:  // Phase Canon
         {
             Row r0 (p, 0), r1 (p, 2), r2 (p, 4);
@@ -1816,44 +1341,128 @@ void build (int index, qd::Patch& p)
             break;
         }
 
-        case 37:  // Glass Rain
+        case 38:  // Muted Buzz
         {
-            Row r0 (p, 0), r1 (p, 2);
+            const int b0 = p.add (K::clock, 15, 17);
+            const int b1 = p.add (K::seq, 28, 15);
+            const int b2 = p.add (K::timbre, 51, 14);
+            const int b3 = p.add (K::out, 72, 16);
+            const int b4 = p.add (K::euclid, 26, 32);
+            const int b5 = p.add (K::filter, 53, 25);
+            setk (p, b0, { 0.5f }, 4);
+            setk (p, b1, { 0.5f, 0.25f }, 0);
+            steps (p, b1, { 0.0f, 0.2806f, 0.62f, 0.076f, 0.74f, 0.2753f, 0.86f, 0.481f });
+            lane2 (p, b1, { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f });
+            modes (p, b1, { 0, 0, 0, 0, 0, 0, 0, 0 });
+            setk (p, b2, { 0.0824f, 0.5f, 0.5f, 0.5647f }, 0);
+            drawers (p, { b2 });
+            if (auto* x = p.find (b2)) x->depth[1] = 0.7529f;
+            setk (p, b3, { 0.8f }, 0);
+            setk (p, b4, { 1.0f, 0.8235f, 0.4706f }, 3);
+            setk (p, b5, { 0.8553f, 0.2f }, 0);
+            p.connect (b1, 0, b2, 0);
+            p.connect (b0, 0, b4, 0);
+            p.connect (b0, 0, b1, 0);
+            p.connect (b2, 0, b5, 0);
+            p.connect (b5, 0, b3, 0);
+            p.connect (b4, 0, b2, 1, true);
+            p.connect (b4, 1, b5, 0, true);
+            break;
+        }
 
-            const int clk = r0.add (K::clock), euc = r0.add (K::euclid);
-            r0.skip();
-            const int mal = r0.add (K::mallet), amp = r0.add (K::level), dly = r0.add (K::delay);
-            const int sca = r0.add (K::scatter), rev = r0.add (K::reverb);
-            r0.add (K::out);
+        case 39:  // Running Wood
+        {
+            const int b0 = p.add (K::mallet, 0, 0);
+            const int b1 = p.add (K::noise, 0, 36);
+            const int b2 = p.add (K::out, 20, 0);
+            const int b3 = p.add (K::clock, 0, 18);
+            const int b4 = p.add (K::turing, 12, 18);
+            const int b5 = p.add (K::env, 28, 18);
+            setk (p, b0, { 0.3f, 0.5f, 0.5f, 0.55f, 0.55f, 0.3f }, 2);
+            setk (p, b1, { 0.8848f }, 0);
+            setk (p, b2, { 0.8f }, 0);
+            setk (p, b3, { 0.5f }, 5);
+            setk (p, b4, { 0.15f, 0.6f }, 2);
+            setk (p, b5, { 0.0f, 0.3f, 0.0f, 0.3f, 0.0f }, 0);
+            p.connect (b1, 0, b0, 0);
+            p.connect (b0, 0, b2, 0);
+            p.connect (b3, 0, b4, 0);
+            p.connect (b4, 1, b5, 0);
+            p.connect (b4, 1, b0, 2);
+            p.connect (b4, 0, b0, 1);
+            break;
+        }
 
-            const int tur = r1.add (K::turing), qnt = r1.add (K::quant);
-            r1.skip (6);
-            const int lfo = r1.add (K::lfo);
+        case 40:  // Warm Skins
+        {
+            const int b0 = p.add (K::mallet, 0, 0);
+            const int b1 = p.add (K::noise, 0, 36);
+            const int b2 = p.add (K::damage, 20, 0);
+            const int b3 = p.add (K::out, 36, 0);
+            const int b4 = p.add (K::clock, 0, 18);
+            const int b5 = p.add (K::seq, 12, 18);
+            const int b6 = p.add (K::env, 32, 18);
+            const int b7 = p.add (K::lfo, 16, 36);
+            setk (p, b0, { 0.3f, 0.5f, 0.5f, 0.55f, 0.55f, 0.3f }, 2);
+            setk (p, b1, { 0.7141f }, 0);
+            setk (p, b2, { 0.55f }, 0);
+            setk (p, b3, { 0.8f }, 0);
+            setk (p, b4, { 0.5f }, 5);
+            setk (p, b5, { 0.5f, 0.2f }, 0);
+            steps (p, b5, { 0.4731f, 0.4193f, 0.6723f, 0.6787f, 0.6744f, 0.4167f, 0.532f, 0.5927f });
+            lane2 (p, b5, { 0.1199f, 0.7914f, 0.6801f, 0.6374f, 0.7344f, 0.1527f, 0.8133f, 0.6837f });
+            modes (p, b5, { 0, 0, 0, 0, 0, 1, 2, 2 });
+            setk (p, b6, { 0.0f, 0.2f, 1.0f, 0.12f, 0.0f }, 0);
+            setk (p, b7, { 0.12f, 0.45f }, 0);
+            p.connect (b1, 0, b0, 0);
+            p.connect (b0, 0, b2, 0);
+            p.connect (b2, 0, b3, 0);
+            p.connect (b4, 0, b5, 0);
+            p.connect (b5, 1, b6, 0);
+            p.connect (b5, 1, b0, 2);
+            p.connect (b5, 0, b0, 1);
+            p.connect (b7, 0, b2, 0, true);
+            break;
+        }
 
-            p.connect (euc, 0, mal, 2);          // strike
-            p.connect (euc, 0, tur, 0);          // new note per hit
-            p.connect (qnt, 0, mal, 1);
-            p.connect (mal, 1, sca, 1);
-            p.connect (lfo, 0, mal, 2, true);    // geometry drifts
-            drawers (p, { mal });
-
-            set (p, clk, 0.5f, -1.0f, -1.0f, 3);   // 1/8
-            setk (p, euc, { 0.25f, 0.0f, 0.85f }, 2);   // 4 of 16, lightly thinned
-            setk (p, tur, { 0.18f, 0.3f }, 5);     // 12 steps
-            setk (p, qnt, { 0.6f, 0.4f }, 1);      // major, up a few
-            setk (p, mal, { 0.0f, 0.6f, 0.6f, 0.45f, 0.8f, 0.75f }, 0);
-            setk (p, amp, { 0.9f });
-            setk (p, dly, { 0.55f, 0.35f, 0.45f }, 4);
-            setk (p, sca, { 0.45f, 0.9f, 0.5f, 0.8f, 0.42f });
-            setk (p, rev, { 0.96f, 0.5f });
-            setk (p, lfo, { 0.06f, 0.25f }, 0);
+        case 41:  // Strange Kick
+        {
+            const int b0 = p.add (K::drum, 0, 0);
+            const int b1 = p.add (K::filter, 20, 0);
+            const int b2 = p.add (K::delay, 36, 0);
+            const int b3 = p.add (K::out, 52, 0);
+            const int b4 = p.add (K::clock, 0, 18);
+            const int b5 = p.add (K::euclid, 12, 18);
+            const int b6 = p.add (K::env, 28, 18);
+            const int b7 = p.add (K::lfo, 0, 36);
+            const int b8 = p.add (K::lfo, 3, 11);
+            setk (p, b0, { 0.0f, 0.3471f, 0.75f, 0.8f }, 3);
+            drawers (p, { b0 });
+            setk (p, b1, { 0.1029f, 0.85f, 0.6f }, 5);
+            setk (p, b2, { 0.85f, 0.6f, 0.3f }, 4);
+            setk (p, b3, { 0.8f }, 0);
+            setk (p, b4, { 0.5f }, 6);
+            setk (p, b5, { 0.3f, 0.0f, 1.0f }, 0);
+            setk (p, b6, { 0.5f, 0.6f, 0.8f, 0.7f, 0.0f }, 0);
+            setk (p, b7, { 0.18f, 0.45f }, 4);
+            setk (p, b8, { 0.2706f, 0.6235f }, 1);
+            p.connect (b0, 0, b1, 0);
+            p.connect (b1, 0, b2, 0);
+            p.connect (b2, 0, b3, 0);
+            p.connect (b4, 0, b5, 0);
+            p.connect (b5, 0, b6, 0);
+            p.connect (b5, 0, b0, 0);
+            p.connect (b6, 0, b1, 0, true);
+            p.connect (b7, 0, b2, 0, true);
+            p.connect (b8, 0, b0, 0, true);
             break;
         }
     }
 
-    // release = decay (legacy)
-    for (auto& b : p.blocks())
-        if (b.kind == K::env) b.knob[3] = b.knob[1];
+    // release = decay (legacy), saved patches keep theirs
+    if (which < 38)
+        for (auto& b : p.blocks())
+            if (b.kind == K::env) b.knob[3] = b.knob[1];
 
     p.needsRebuild = true;
 }
