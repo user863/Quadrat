@@ -1112,7 +1112,7 @@ void QuadratEditor::drawAbout (juce::Graphics& g)
     static const char* lines[] =
     {
         "QUADRAT",
-        "Quadrat is an open-source semi-modular synthesizer, with a fun,",
+        "Quadrat is an open-source modular synthesizer, with a fun,",
         "easy-to-understand interface that enables people to try out modular",
         "synthesis without having to develop a deep technical understanding of",
         "the underlying mechanisms. Enjoy!",
@@ -1984,6 +1984,30 @@ void QuadratEditor::drawTile (juce::Graphics& g, const qd::Block& b,
     const float labelSize = unit * 0.095f;
     const bool roomForNames = unit > 46.0f;
 
+    // names sit outside, inside when a cable or a neighbour is there
+    const bool onField = viewBlock (b.id) != nullptr;
+    auto nameInside = [&] (bool isInput, int port, float y)
+    {
+        if (! onField) return true;
+
+        for (const auto& c : viewCables)
+            if (isInput ? (c.to == b.id && ! c.toKnob && c.toPort == port)
+                        : (c.from == b.id && c.fromPort == port))
+                return true;
+
+        const float edge = isInput ? r.getX() : r.getRight();
+        for (const auto& t : viewBlocks)
+        {
+            if (t.id == b.id) continue;
+            const auto tr = tileRect (t);
+            if (std::abs ((isInput ? tr.getRight() : tr.getX()) - edge) < unit * 0.3f
+                && y > tr.getY() && y < tr.getBottom())
+                return true;
+        }
+
+        return false;
+    };
+
     // highlight valid inputs
     const bool hunting = (drag == Drag::cable && cableFrom >= 0);
     qd::Sig dragKindSig = qd::Sig::audio;
@@ -2014,9 +2038,14 @@ void QuadratEditor::drawTile (juce::Graphics& g, const qd::Block& b,
         if (roomForNames)
         {
             g.setColour (col.withAlpha (0.85f));
-            drawLabel (g, qd::portName (b.kind, true, i), r.getX() + pr * 1.6f,
-                         y + labelSize * 0.36f, labelSize, 0.0f,
-                         juce::Justification::left, r.getWidth() * 0.4f);
+            if (nameInside (true, i, y))
+                drawLabel (g, qd::portName (b.kind, true, i), r.getX() + pr * 1.6f,
+                             y + labelSize * 0.36f, labelSize, 0.0f,
+                             juce::Justification::left, r.getWidth() * 0.4f);
+            else
+                drawLabel (g, qd::portName (b.kind, true, i), r.getX() - pr * 1.6f - unit * 0.8f,
+                             y + labelSize * 0.36f, labelSize, 0.0f,
+                             juce::Justification::right, unit * 0.8f);
         }
     }
 
@@ -2031,9 +2060,14 @@ void QuadratEditor::drawTile (juce::Graphics& g, const qd::Block& b,
         if (roomForNames)
         {
             g.setColour (col.withAlpha (0.85f));
-            drawLabel (g, qd::portName (b.kind, false, i), r.getRight() - pr * 1.6f - r.getWidth() * 0.4f,
-                         y + labelSize * 0.36f, labelSize, 0.0f,
-                         juce::Justification::right, r.getWidth() * 0.4f);
+            if (nameInside (false, i, y))
+                drawLabel (g, qd::portName (b.kind, false, i), r.getRight() - pr * 1.6f - r.getWidth() * 0.4f,
+                             y + labelSize * 0.36f, labelSize, 0.0f,
+                             juce::Justification::right, r.getWidth() * 0.4f);
+            else
+                drawLabel (g, qd::portName (b.kind, false, i), r.getRight() + pr * 1.6f,
+                             y + labelSize * 0.36f, labelSize, 0.0f,
+                             juce::Justification::left, unit * 0.8f);
         }
     }
 

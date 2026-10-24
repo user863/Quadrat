@@ -208,7 +208,7 @@ int main (int argc, char** argv)
         // leaves the flag set, so the editors below open clean
     }
 
-    proc.setCurrentProgram (2);               // Acid Line, for scopes
+    proc.setCurrentProgram (1);               // Acid Line, for scopes
 
     std::unique_ptr<juce::AudioProcessorEditor> ed (proc.createEditor());
     check (ed != nullptr, "the panel builds");

@@ -917,7 +917,7 @@ export class Panel
 
         const lines = [
             'QUADRAT',
-            'Quadrat is an open-source semi-modular synthesizer, with a fun,',
+            'Quadrat is an open-source modular synthesizer, with a fun,',
             'easy-to-understand interface that enables people to try out modular',
             'synthesis without having to develop a deep technical understanding of',
             'the underlying mechanisms. Enjoy!',

@@ -38,8 +38,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuadratProcessor::makeLayout
 }
 
 QuadratProcessor::QuadratProcessor()
-    // sidechain, default off
-    : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true)   // on: effect slots feed it
+    // input on: effect slots feed it
+    : AudioProcessor (BusesProperties().withInput ("Input", juce::AudioChannelSet::stereo(), true)
                                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "state", makeLayout (this))
 {

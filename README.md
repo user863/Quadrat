@@ -1,6 +1,6 @@
 # ▢quadrat
 
-Quadrat is an free, open-source semi-modular synthesizer, 
+Quadrat is a free, open-source modular synthesizer, 
 with a fun, easy-to-understand interface that allows people to try out modular synthesis. 
 Enjoy!
 

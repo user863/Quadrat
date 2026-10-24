@@ -557,7 +557,7 @@ QuadratEditor::CardLayout QuadratEditor::cardLayout (const Hints& m) const
             lay.head = "Tutorial";
             lay.main = "Welcome to Quadrat!";
             lay.mainSize = bigSize * s;
-            lay.why = "Quadrat is a semi-modular synth built to make it easy to make your first modular piece! "
+            lay.why = "Quadrat is a modular synth built to make it easy to make your first modular piece! "
                       "The tutorial walks you through your first patch, one click at a time. "
                       "It takes about ten minutes, and you can go back whenever you want.";
             btns.push_back ({ "skip", welcomeSkip, false, false });
