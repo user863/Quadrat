@@ -34,9 +34,6 @@ Quadrat**.
 When you first open Quadrat, there is a quick tutorial you can use to get started. You can find it again at any time by clicking on the
 **quadrat** logo.
 
-<!-- SCREENSHOT: the welcome card ("Welcome to Quadrat!") over the panel. -->
-![The welcome card](docs/screenshots/welcome.png)
-
 ## How patching works
 
 You can connect blocks by placing them next to each other, or by using cables.
@@ -71,9 +68,7 @@ Search the picker by name or by block function (`filter`, `envelope`,
 
 Hovering over a block gives a quick overview of the functionality. Many plugins also have presets of their own.
 
-<!-- SCREENSHOT: the picker with a search typed in (e.g. "filter") and a
-     block's tooltip showing. -->
-![Searching the picker](docs/screenshots/picker.png)
+<img width="240" height="302" alt="image" src="https://github.com/user-attachments/assets/fc343a7e-43bb-4992-80c5-ecf96330adb1" />
 
 ## Notes and MIDI
 
@@ -84,11 +79,10 @@ Hovering over a block gives a quick overview of the functionality. Many plugins 
   - or drag a `.mid` file onto it (or onto the empty field to create one),
   - or, in Logic Pro, copy notes in the piano roll and press `⌘V` in Quadrat.
 
-Copy and Paste for other DAWs is WIP, but most DAWs keep their Midi Clipboard private, so Midi Drag and Drop is currently the best workaround.
+Copy and Paste for other DAWs is sadly hard to implement, so for now there is a midi file selection or drag and drop.
 
-<!-- SCREENSHOT: a midi block holding a loaded phrase, ideally with the drop
-     outline visible while a file is dragged over it. -->
-![A midi block with a loaded phrase](docs/screenshots/midi.png)
+<img width="788" height="434" alt="image" src="https://github.com/user-attachments/assets/bf9642eb-2c5d-4cf6-b27a-3cc4873de915" />
+
 
 ## In your DAW
 
@@ -141,9 +135,8 @@ cmake --build build
 `web/` is a demo of the plugin in WebAssembly, it still lacks certain functionality, 
 but you can use it to try out the plugin before downloading:)
 
+<img width="1524" height="893" alt="image" src="https://github.com/user-attachments/assets/ddab5962-29d6-42f9-bf2d-5a945e67a735" />
 
-<!-- SCREENSHOT: the web version in a browser window. -->
-![The web version](docs/screenshots/web.png)
 
 ## Contributing
 
