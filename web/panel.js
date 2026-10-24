@@ -651,11 +651,43 @@ export class Panel
             return;
         }
 
-        const msg = b.kind === K.midi ? 'paste notes in the plugin' : b.kind === K.input ? 'audio in: plugin only' : null;
+        const msg = b.kind === K.midi ? 'MIDI files: plugin only' : b.kind === K.input ? 'audio in: plugin only' : null;
         if (msg)
         {
             ctx.fillStyle = '#8d8f8b';
             label (ctx, msg, f.x, f.y + f.h / 2 + 3, Math.max (6, f.h * 0.14), 0, 'centre', f.w);
+            return;
+        }
+
+        if (b.kind === K.ball && b.ball)
+        {
+            const [x, y, floorLit, wallLit] = b.ball;
+            const side = Math.min (f.w, f.h) - 2, bx = f.x + (f.w - side) / 2, by = f.y + (f.h - side) / 2;
+            const rad = Math.max (1.5, side * 0.07);
+            const place = (px, py) => [bx + rad + (px * 0.5 + 0.5) * (side - rad * 2),
+                                       by + side - rad - (py * 0.5 + 0.5) * (side - rad * 2)];
+
+            ctx.strokeStyle = paint.screenLn; ctx.lineWidth = 1; ctx.strokeRect (bx, by, side, side);
+            ctx.fillStyle = withAlpha (paint.sig[2], 0.25 + 0.75 * clamp (floorLit, 0, 1));
+            ctx.fillRect (bx, by + side - 1.5, side, 1.5);
+            ctx.fillStyle = withAlpha (paint.sig[2], 0.15 + 0.85 * clamp (wallLit, 0, 1));
+            ctx.fillRect (bx, by, 1.5, side); ctx.fillRect (bx + side - 1.5, by, 1.5, side);
+
+            // trail
+            const trail = (this.trails ??= new Map()).get (b.id) || [];
+            trail.push ([x, y]); while (trail.length > 10) trail.shift();
+            this.trails.set (b.id, trail);
+            trail.forEach (([tx, ty], i) =>
+            {
+                const [px, py] = place (tx, ty);
+                ctx.fillStyle = withAlpha (paint.sig[3], 0.06 + 0.18 * i / trail.length);
+                ctx.beginPath(); ctx.arc (px, py, rad * 0.5, 0, 7); ctx.fill();
+            });
+
+            // squash on contact
+            const [px, py] = place (x, y), sq = clamp (floorLit, 0, 1) * 0.45;
+            ctx.fillStyle = paint.sig[3];
+            ctx.beginPath(); ctx.ellipse (px, py, rad * (1 + sq), rad * (1 - sq * 0.8), 0, 0, 7); ctx.fill();
             return;
         }
 

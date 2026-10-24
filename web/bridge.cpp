@@ -221,6 +221,15 @@ const char* qd_state()
             json += ",\"phase\":"; num (json, patch.phase (b.id));
         }
 
+        // ball: x, y, floor, wall
+        if (b.kind == qd::Kind::ball)
+        {
+            float x = 0, y = 0, fl = 0, wl = 0;
+            patch.ballAt (b.id, x, y, fl, wl);
+            json += ",\"ball\":["; num (json, x); json += ','; num (json, y); json += ',';
+            num (json, fl); json += ','; num (json, wl); json += "]";
+        }
+
         // scope, 48 points
         if (const float* sc = patch.scope (b.id))
         {
