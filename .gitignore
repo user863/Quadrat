@@ -3,7 +3,7 @@ build/
 build-*/
 cmake-build-*/
 
-# the web build's compiled output; web/build.sh makes it
+# the web build's compiled output; web/build.sh
 web/quadrat.wasm
 
 # editors and the Finder
