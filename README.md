@@ -5,7 +5,8 @@ with a fun, easy-to-understand interface that allows people to try out modular s
 Enjoy!
 
 
-It runs as a **VST3** / **AU** on both Windows and macOS (Apple Silicon/Intel). There is also a Windows Standalone Version and a web demo you can try out here!
+It runs as a **VST3** / **AU** on both Windows and macOS (Apple Silicon/Intel). There is also a Windows Standalone Version and a web demo you can try out
+[here](https://user863.github.io/Quadrat/)!
 
 <!-- SCREENSHOT: the full panel with a factory preset playing (e.g. "34 Glacier
      Chord"), cables visible, nothing selected. 2240×1320 (2× retina) or 1120×660. -->
