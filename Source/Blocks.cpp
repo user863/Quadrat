@@ -121,7 +121,7 @@ static constexpr BlockSpec kSpecs[] =
       "twin peaks|clocked noise|granular|particle noise|digital mod|question mark" }
 ,
 
-    // ball in a box
+    // ball box
     { Kind::ball,   "ball",   "gen", 2, 3, 1, 4, 4, { "kick" }, { "x", "y", "floor", "wall" },
       { { "throw", 0.7f }, { "drift", 0.35f }, { "gravity", 0.4f }, { "bounce", 0.8f } },
       "walls|wrap" },
@@ -164,7 +164,7 @@ Kind kindFromLegacy (int old)
     return (old >= 0 && old < n) ? was[old] : Kind::count;
 }
 
-// table must match Kind
+// table has to match Kind
 constexpr bool specsMatchKinds()
 {
     for (int i = 0; i < (int) Kind::count; ++i)
@@ -573,7 +573,7 @@ void Patch::noteOn (int note, float velocity)
 
 void Patch::noteOff (int note)
 {
-    // pedal down: keep it sounding
+    // pedal down: sustain
     if (sustainDown)
     {
         if (std::find (held.begin(), held.end(), note) != held.end()
@@ -814,7 +814,6 @@ void Patch::rebuild()
     for (const auto& t : touching())
         edges.push_back (t);
 
-    // topo sort; loops last
     order.clear();
     std::vector<int> degree (items.size(), 0);
 
@@ -914,7 +913,6 @@ void Patch::process (float* outL, float* outR, int n)
         for (int k = 0; k < n; ++k) peak = std::max (peak, std::abs (o[(std::size_t) k]));
         r.meter = std::max (peak, r.meter * 0.86f);
 
-        // strided scope grab
         if (b.kind != Kind::comp && b.kind != Kind::limit)
         {
             const int stride = std::max (1, n / kScope);
