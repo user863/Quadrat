@@ -17,7 +17,7 @@ enum class Id
     count
 };
 
-// what a step targets
+//step targets
 enum class Aim
 {
     none,        // the card alone
@@ -39,9 +39,9 @@ enum class Button { none, stop, start, roll };
 struct Step
 {
     Id id;
-    int chapter;                        // 0-based
-    const char* task;                 // the ask
-    const char* why;                    // the why
+    int chapter;                     
+    const char* task;                
+    const char* why;                  
     Aim aim;
 
     qd::Kind kind = qd::Kind::count;    // target block
