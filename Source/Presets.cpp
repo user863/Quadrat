@@ -4,7 +4,6 @@
 namespace blockPresets
 {
 
-// <0 = leave as is
 struct BP { const char* name; int opt; float k[12]; };
 
 #define NONE -1.0f
@@ -376,7 +375,7 @@ static std::string nameFor (const qd::Patch& p, std::mt19937& rng)
         }
     }
 
-    // ── voice ──
+    // voice 
     std::string noun = "Tone";
 
     if (voice != nullptr)
@@ -500,7 +499,7 @@ static std::string nameFor (const qd::Patch& p, std::mt19937& rng)
     const std::size_t pickFrom = std::min<std::size_t> (2, traits.size());
     std::string adjective = traits[rng() % pickFrom].second;
 
-    // no "Acid Acid"
+    // no double words
     if (adjective == noun) adjective = traits.size() > 1 ? traits[1].second : "Little";
 
     return adjective + " " + noun;
@@ -619,7 +618,7 @@ std::string randomPatch (qd::Patch& p, unsigned int seed)
         else if (b->kind == K::filter) { p.connect (env, 0, id, 0, true); placed = true; }
     }
 
-    // one slow modulator
+    // slow modulator
     const bool bouncing = chance (0.3);
     const int lfo = shaping.add (bouncing ? K::ball : K::lfo);
 
@@ -900,7 +899,6 @@ void build (int index, qd::Patch& p)
             break;
         }
 
-        // rows from here on
 
         case 20:  // Techno Kick
         {
@@ -1459,7 +1457,7 @@ void build (int index, qd::Patch& p)
         }
     }
 
-    // release = decay (legacy), saved patches keep theirs
+    // release = decay (legacy)
     if (which < 38)
         for (auto& b : p.blocks())
             if (b.kind == K::env) b.knob[3] = b.knob[1];
