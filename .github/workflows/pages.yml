@@ -25,7 +25,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pinned: 7.0 dropped the implicit <cstdio> the vendored DSP relies on
       - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.13
 
       - name: Build wasm
         run: sh web/build.sh
