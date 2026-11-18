@@ -5,12 +5,12 @@ with a fun, easy-to-understand interface that allows people to try out modular s
 Enjoy!
 
 
-It runs as a **VST3** / **AU** on both Windows and macOS (Apple Silicon/Intel). There is also a Windows Standalone Version and a web demo you can try out
+It comes as a **VST3** / **AU** on both Windows and macOS (Apple Silicon/Intel). There is also a Windows Standalone Version and a web demo you can try out
 [here](https://user863.github.io/Quadrat/)!
 
-<!-- SCREENSHOT: the full panel with a factory preset playing (e.g. "34 Glacier
-     Chord"), cables visible, nothing selected. 2240×1320 (2× retina) or 1120×660. -->
-<img width="1120" height="660" alt="image" src="https://github.com/user-attachments/assets/82d27ecd-c54e-49a5-bc60-97f5ed916fa8" />
+<!-- SCREENSHOT: full panel -->
+<img width="1117" height="658" alt="Bildschirmfoto 2026-10-19 um 19 24 32" src="https://github.com/user-attachments/assets/4d99aef2-2d18-47a5-b288-c59a6867b50b" />
+
 
 ## Download
 
@@ -22,20 +22,20 @@ For Builds see [Releases page](https://github.com/user863/Quadrat/releases).
 | macOS | AU | `~/Library/Audio/Plug-Ins/Components/` |
 | macOS | VST3 | `~/Library/Audio/Plug-Ins/VST3/` |
 
-Unzip, copy the `.component` or `.vst3` into your DAW's Plugin Folder, then rescan plug-ins in
+Unzip, copy `.component` or `.vst3` into your DAW's Plugin Folder, then rescan plug-ins in
 your DAW. In Logic Pro, Quadrat is under **AU Instruments → Quadrat →
 Quadrat**.
 
 > **The builds are currently unsigned.** On macOS, if the plug-in is blocked by Security, open
 > **System Settings → Privacy & Security** and choose **Open Anyway**, or run
-> `xattr -dr com.apple.quarantine` on the bundle. Alternatively, you can follow the instructions below to build it yourself from the source.
+> `xattr -dr com.apple.quarantine` on the bundle. Alternatively, you can follow the instructions below to build it yourself from source.
 
 ## Getting started
 
-When you first open Quadrat, there is a quick tutorial you can use to get started. You can find it again at any time by clicking on the
+When you first load up Quadrat, there is a quick tutorial to get you started. You can find it again at any time by clicking on the
 **quadrat** logo.
 
-## How patching works
+## Patching
 
 You can connect blocks by placing them next to each other, or by using cables.
 
@@ -67,7 +67,7 @@ Search the picker by name or by block function (`filter`, `envelope`,
 | Generative | `turing`, `euclid`, `chaos`, `ball` |
 | Output | `pluck`, `reverb`, `meter`, `out` |
 
-Hovering over a block gives a quick overview of the functionality. Many plugins also have presets of their own.
+Hovering over a block gives a quick overview of the functionality. Many plugins also have presets of their own, like the Sequencer.
 
 <img width="281" height="290" alt="image" src="https://github.com/user-attachments/assets/2b2b3579-37ae-4597-b362-3085cf59e447" />
 
@@ -75,28 +75,27 @@ Hovering over a block gives a quick overview of the functionality. Many plugins 
 
 - **`key`** plays notes coming from your DAW or MIDI keyboard, with pitch
   bend and sustain.
-- **`midi`** loops a phrase in time with the clock. To use it:
+- **`midi`** loops a phrase using the clocks timing. To use it:
   - click its screen and choose a `.mid` file,
   - or drag a `.mid` file onto it (or onto the empty field to create one),
   - or, in Logic Pro, copy notes in the piano roll and press `⌘V` in Quadrat.
 
-Copy and Paste for other DAWs is sadly hard to implement, so for now there is a midi file selection or drag and drop.
+WIP: Copy and Paste for other DAWs is sadly harder to implement, so for now there is a midi file selection or drag and drop.
 
 <img width="788" height="434" alt="image" src="https://github.com/user-attachments/assets/bf9642eb-2c5d-4cf6-b27a-3cc4873de915" />
 
 
 ## In your DAW
 
-- Any knob or depth ring you turn becomes a host parameter, named after it
-  (for example "osc tune" or "osc shape depth"), so FL Studio's **Last
-  tweaked**, automation clips and controller links work on it. Up to 32 at a
+- Any knob or depth ring you use turns into a host parameter with the same name, so FL Studio's **Last
+  tweaked**, automation clips and controller links will work. Up to 32 at a
   time.
 - `ctrl` blocks expose sixteen more controls for host automation, as signals
   you can patch anywhere. In FL Studio they are under **Browse parameters**.
 - A session saves the whole patch: blocks, cables, settings and values.
 - The `in` block brings audio into the patch: a microphone in the standalone
   app, or a track or side-chain where the host offers one. In FL Studio,
-  load Quadrat as an effect in a mixer slot to use it.
+  you will need to load the VST into a mixer slot to use this functionality.
 
 ## Shortcuts
 
@@ -133,7 +132,7 @@ cmake --build build
 
 ## Web version
 
-`web/` is a demo of the plugin in WebAssembly, it still lacks certain functionality, 
+`web/` is a demo version in WebAssembly, it still lacks certain functionality, 
 but you can use it to try out the plugin before downloading:)
 
 <img width="1524" height="893" alt="image" src="https://github.com/user-attachments/assets/ddab5962-29d6-42f9-bf2d-5a945e67a735" />
