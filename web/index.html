@@ -29,12 +29,13 @@
     #menu div { padding: 3px 14px; cursor: pointer; white-space: nowrap; }
     #menu div:hover { background: #2c2e2c; color: #d2d3d0; }
 
-    #start { position: absolute; inset: 0; display: grid; place-content: center; gap: 14px;
-             justify-items: center; background: rgba(198,199,196,0.96); text-align: center; z-index: 5; }
-    #start h1 { font: 400 22px Inter, sans-serif; letter-spacing: 0.08em; margin: 0; }
-    #start p { max-width: 38ch; color: #6d6f6b; margin: 0; }
+    /* clean start: the button alone, nothing around it */
+    #start { position: absolute; inset: 0; display: grid; place-content: center;
+             background: linear-gradient(#dddedb, #c6c7c4); z-index: 5; }
     #start button { font: 400 13px Inter, sans-serif; padding: 8px 18px; border-radius: 4px; cursor: pointer;
                     background: #2c2e2c; color: #dddedb; border: 0; }
+    #start button:disabled { opacity: 0.6; cursor: default; }
+    #stage:not(.live) #search, #stage:not(.live) #preset { visibility: hidden; }
 </style>
 
 <div id="stage">
@@ -42,9 +43,6 @@
     <input id="search" placeholder="search" autocomplete="off" spellcheck="false">
     <select id="preset" title="presets"></select>
     <div id="start">
-        <h1>quadrat</h1>
-        <p>The plugin's engine, compiled to WebAssembly and running in your browser.
-           Drag blocks from the list, patch them, play notes with A to K.</p>
         <button id="go">start audio</button>
     </div>
 </div>
@@ -64,8 +62,8 @@ let panel = null, node = null;
 function fit()
 {
     const r = stage.getBoundingClientRect(), s = r.width / 1120;
-    canvas.width = r.width * devicePixelRatio;
-    canvas.height = r.height * devicePixelRatio;
+    canvas.width = Math.round (r.width * devicePixelRatio);
+    canvas.height = Math.round (r.height * devicePixelRatio);
     Object.assign (search.style, { left: SEARCH.x * s + 'px', top: SEARCH.y * s + 'px', width: SEARCH.w * s + 'px',
                                    height: SEARCH.h * s + 'px', fontSize: 11 * s + 'px', padding: `0 ${8 * s}px` });
     Object.assign (presetSel.style, { left: 150 * s + 'px', top: 24 * s + 'px', width: 160 * s + 'px',
@@ -85,23 +83,44 @@ function showMenu (items, e, pick)
         d.onpointerdown = (ev) => { ev.stopPropagation(); menu.style.display = 'none'; pick (i); };
         menu.appendChild (d);
     });
-    menu.style.left = e.clientX + 'px';
-    menu.style.top = e.clientY + 'px';
     menu.style.display = 'block';
+
+    // keep it on screen
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    menu.style.left = Math.max (4, Math.min (e.clientX, innerWidth - w - 4)) + 'px';
+    menu.style.top = Math.max (4, Math.min (e.clientY, innerHeight - h - 4)) + 'px';
 }
 
 addEventListener ('pointerdown', (e) => { if (! menu.contains (e.target)) menu.style.display = 'none'; }, true);
 
-document.getElementById ('go').onclick = async () =>
+const go = document.getElementById ('go');
+
+go.onclick = async () =>
 {
-    document.getElementById ('start').remove();
+    go.disabled = true;
 
-    const ctx = new AudioContext();
-    await ctx.audioWorklet.addModule ('quadrat-worklet.js');
-    const wasm = await (await fetch ('quadrat.wasm')).arrayBuffer();
-    node = new AudioWorkletNode (ctx, 'quadrat', { numberOfInputs: 0, outputChannelCount: [2] });
-    node.connect (ctx.destination);
+    try
+    {
+        const ctx = new AudioContext();
+        await ctx.audioWorklet.addModule ('quadrat-worklet.js');
+        const res = await fetch ('quadrat.wasm');
+        if (! res.ok) throw new Error ('quadrat.wasm: ' + res.status);
+        const wasm = await res.arrayBuffer();
+        node = new AudioWorkletNode (ctx, 'quadrat', { numberOfInputs: 0, outputChannelCount: [2] });
+        node.connect (ctx.destination);
+        listen (wasm);
+    }
+    catch (err)
+    {
+        // say why, let them retry
+        console.error (err);
+        go.textContent = 'could not start audio - try again';
+        go.disabled = false;
+    }
+};
 
+function listen (wasm)
+{
     node.port.onmessage = (e) =>
     {
         const m = e.data;
@@ -109,7 +128,8 @@ document.getElementById ('go').onclick = async () =>
         if (m.type === 'ready')
         {
             const specs = JSON.parse (m.specs);
-            panel = new Panel (canvas, specs, (msg) => node.port.postMessage (msg), { search, menu: showMenu });
+            panel = new Panel (canvas, specs, (msg) => node.port.postMessage (msg),
+                               { search, menu: showMenu, cleared: () => showPatch ('empty patch') });
 
             specs.presets.forEach ((name, i) =>
             {
@@ -117,19 +137,24 @@ document.getElementById ('go').onclick = async () =>
                 o.value = i; o.textContent = name;
                 presetSel.appendChild (o);
             });
+            presetSel.value = '0';
 
+            document.getElementById ('start').remove();
+            stage.classList.add ('live');
             requestAnimationFrame (draw);
         }
 
         if (m.type === 'state' && panel) panel.setState (JSON.parse (m.state));
-        if (m.type === 'rolled' && panel) panel.say (m.name);
+        if (m.type === 'rolled') showPatch (m.name);
     };
 
     node.port.postMessage ({ type: 'init', wasm }, [wasm]);
-};
+}
 
 function draw()
 {
+    // new screen, new pixel ratio
+    if (canvas.width !== Math.round (stage.getBoundingClientRect().width * devicePixelRatio)) fit();
     if (panel) panel.frame();
     requestAnimationFrame (draw);
 }
@@ -137,9 +162,22 @@ function draw()
 search.addEventListener ('input', () => panel && panel.filter (search.value));
 search.addEventListener ('keydown', (e) => { if (e.key === 'Escape') { search.value = ''; panel && panel.filter (''); search.blur(); } });
 
+// a patch that isn't a preset: rolled or cleared
+const custom = document.createElement ('option');
+custom.value = 'custom'; custom.disabled = true; custom.hidden = true;
+presetSel.appendChild (custom);
+
+function showPatch (name)
+{
+    custom.textContent = name;
+    custom.hidden = false;
+    presetSel.value = 'custom';
+}
+
 presetSel.onchange = () =>
 {
     if (! node) return;
+    custom.hidden = true;
     panel.frameNext = true;
     node.port.postMessage ({ type: 'preset', i: +presetSel.value });
     presetSel.blur();
@@ -159,6 +197,16 @@ addEventListener ('keydown', (e) =>
     down.add (n);
     node.port.postMessage ({ type: 'note', midi: n, vel: 1, on: true });
 });
+
+// focus lost mid-note: let go
+function releaseAll()
+{
+    if (node) for (const n of down) node.port.postMessage ({ type: 'note', midi: n, on: false });
+    down.clear();
+}
+
+addEventListener ('blur', releaseAll);
+document.addEventListener ('visibilitychange', () => { if (document.hidden) releaseAll(); });
 
 addEventListener ('keyup', (e) =>
 {

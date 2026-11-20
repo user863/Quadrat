@@ -26,6 +26,8 @@ const K = { osc: 1, noise: 2, filter: 3, clock: 14, seq: 15, macro: 24, comp: 33
             meter: 35, timbre: 36, ball: 37, midi: 38, input: 39 };
 const SCOPED = new Set ([K.osc, K.timbre, K.ball, K.macro, K.noise, K.comp, K.limit, K.clock, K.filter, K.midi, K.input]);
 
+const TIP_DELAY = 600, TIP_SHOW = 3000, TIP_FADE = 300, TIP_MOVE = 48;   // ms, ms, ms, px
+
 const font = (px, weight = 400) => `${weight} ${px}px Inter, system-ui, sans-serif`;
 const clamp = (v, a, b) => Math.max (a, Math.min (b, v));
 const inside = (r, p) => r && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
@@ -94,7 +96,7 @@ export class Panel
         this.specs = specs;
         this.sub = specs.sub || 4;
         this.send = send;
-        this.ui = ui;                         // { search, menu(items, at, pick) }
+        this.ui = ui;                         // { search, menu(items, at, pick), cleared() }
         this.state = { blocks: [], cables: [], touching: [] };
         this.zoom = 1; this.panX = -40; this.panY = -40;
         this.palScroll = 0;
@@ -103,7 +105,6 @@ export class Panel
         this.selected = -1;
         this.stopped = false;
         this.showAbout = false;
-        this.notice = ''; this.noticeUntil = 0;
         this.frameNext = true;
         this.capDown = null;
         this.filter ('');
@@ -312,8 +313,6 @@ export class Panel
         });
     }
 
-    say (text) { this.notice = text; this.noticeUntil = performance.now() + 2500; }
-
     // fit patch on open
     frameNow()
     {
@@ -353,12 +352,6 @@ export class Panel
 
         ctx.fillStyle = this.showAbout ? paint.sig[0] : paint.ink;
         label (ctx, 'quadrat', M, 38, 17, 1.2);
-
-        if (this.notice && performance.now() < this.noticeUntil)
-        {
-            ctx.fillStyle = paint.inkSoft;
-            label (ctx, this.notice, 330, 37, 9.5, 0, 'left', 380);
-        }
 
         this.drawCaps();
 
@@ -566,6 +559,21 @@ export class Panel
         const pr = unit * 0.055, ls = unit * 0.095, names = unit > 46;
         const hunting = this.drag && this.drag.kind === 'cable' ? this.sigOf (this.drag.src, this.drag.port) : -1;
 
+        // names sit outside, inside when a cable or a neighbour is there
+        const onField = b.id >= 0 && !! this.find (b.id);
+        const nameInside = (isIn, port, y) =>
+        {
+            if (! onField) return true;
+            if (this.state.cables.some (c => isIn ? (c.to === b.id && ! c.toKnob && c.tp === port) : (c.from === b.id && c.fp === port))) return true;
+            const edge = isIn ? r.x : r.x + r.w;
+            return this.state.blocks.some (o =>
+            {
+                if (o.id === b.id) return false;
+                const t = this.tileRect (o);
+                return Math.abs ((isIn ? t.x + t.w : t.x) - edge) < unit * 0.3 && y > t.y && y < t.y + t.h;
+            });
+        };
+
         k.in.forEach ((p, i) =>
         {
             const y = r.y + r.h * (i + 1) / (k.in.length + 1), col = paint.sig[p.sig];
@@ -577,14 +585,24 @@ export class Panel
             }
             ctx.fillStyle = paint.field; ctx.beginPath(); ctx.arc (r.x, y, pr, 0, 7); ctx.fill();
             ctx.strokeStyle = col; ctx.lineWidth = unit * 0.022; ctx.stroke();
-            if (names) { ctx.fillStyle = withAlpha (col, 0.85); label (ctx, p.name, r.x + pr * 1.6, y + ls * 0.36, ls, 0, 'left', r.w * 0.4); }
+            if (names)
+            {
+                ctx.fillStyle = withAlpha (col, 0.85);
+                if (nameInside (true, i, y)) label (ctx, p.name, r.x + pr * 1.6, y + ls * 0.36, ls, 0, 'left', r.w * 0.4);
+                else label (ctx, p.name, r.x - pr * 1.6 - unit * 0.8, y + ls * 0.36, ls, 0, 'right', unit * 0.8);
+            }
         });
 
         k.out.forEach ((p, i) =>
         {
             const y = r.y + r.h * (i + 1) / (k.out.length + 1), col = paint.sig[p.sig];
             ctx.fillStyle = col; ctx.beginPath(); ctx.arc (r.x + r.w, y, pr, 0, 7); ctx.fill();
-            if (names) { ctx.fillStyle = withAlpha (col, 0.85); label (ctx, p.name, r.x + r.w - pr * 1.6 - r.w * 0.4, y + ls * 0.36, ls, 0, 'right', r.w * 0.4); }
+            if (names)
+            {
+                ctx.fillStyle = withAlpha (col, 0.85);
+                if (nameInside (false, i, y)) label (ctx, p.name, r.x + r.w - pr * 1.6 - r.w * 0.4, y + ls * 0.36, ls, 0, 'right', r.w * 0.4);
+                else label (ctx, p.name, r.x + r.w + pr * 1.6, y + ls * 0.36, ls, 0, 'left', unit * 0.8);
+            }
         });
 
         // output lamp
@@ -910,11 +928,21 @@ export class Panel
         }
     }
 
+    // shown once per hover, pinned where it appeared, then fades
     drawTooltip()
     {
-        if (this.drag || this.showAbout || this.hoverKind == null || performance.now() - this.hoverSince < 600) return;
+        const t = performance.now() - this.hoverSince;
+        if (this.drag || this.showAbout || this.hoverKind == null || this.tipDone || t < TIP_DELAY) return;
         const k = this.specs.kinds[this.hoverKind];
         if (! k || ! k.about) return;
+
+        this.tipAt ??= { ...this.mouse };
+        const shown = t - TIP_DELAY;
+        if (shown > TIP_SHOW + TIP_FADE || Math.hypot (this.mouse.x - this.tipAt.x, this.mouse.y - this.tipAt.y) > TIP_MOVE)
+        {
+            this.tipDone = true;
+            return;
+        }
 
         const ctx = this.ctx, w = 260, pad = 10;
         ctx.font = font (9.5);
@@ -924,9 +952,12 @@ export class Panel
         if (line) lines.push (line);
 
         const h = pad * 2 + 14 + lines.length * 13;
-        let x = this.mouse.x + 14, y = this.mouse.y + 18;
+        let x = this.tipAt.x + 14, y = this.tipAt.y + 18;
         if (x + w > W - 8) x = W - 8 - w;
-        if (y + h > H - 8) y = this.mouse.y - h - 10;
+        if (y + h > H - 8) y = this.tipAt.y - h - 10;
+
+        ctx.save();
+        ctx.globalAlpha = clamp ((TIP_SHOW + TIP_FADE - shown) / TIP_FADE, 0, 1) * clamp (shown / 120, 0, 1);
 
         ctx.fillStyle = 'rgba(0,0,0,0.15)'; rrect (ctx, { x, y: y + 2, w, h }, 4); ctx.fill();
         ctx.fillStyle = paint.plateHi; rrect (ctx, { x, y, w, h }, 4); ctx.fill();
@@ -934,6 +965,7 @@ export class Panel
         ctx.fillStyle = paint.ink; label (ctx, k.name, x + pad, y + pad + 9, 10.5, 0.3, 'left', 0, true);
         ctx.fillStyle = paint.inkSoft;
         lines.forEach ((l, i) => label (ctx, l, x + pad, y + pad + 26 + i * 13, 9.5));
+        ctx.restore();
     }
 
     aboutPanel() { return { x: W / 2 - 250, y: 76, w: 500, h: 500 }; }
@@ -1008,6 +1040,7 @@ export class Panel
         const p = this.at (e);
         this.mouse = p;
         this.ui.search.blur();
+        this.tipDone = true;                // a click ends the tooltip
 
         if (this.showAbout)
         {
@@ -1147,7 +1180,7 @@ export class Panel
 
     pressCap (name)
     {
-        if (name === 'clear') this.send ({ type: 'clear' });
+        if (name === 'clear') { this.send ({ type: 'clear' }); this.ui.cleared?.(); }
         if (name === 'roll') { this.frameNext = true; this.send ({ type: 'roll', seed: (Math.random() * 1e9) | 0 }); }
         if (name === 'start') { this.stopped = false; this.send ({ type: 'start' }); }
         if (name === 'stop') { this.stopped = ! this.stopped; this.send ({ type: this.stopped ? 'stop' : 'start' }); }
@@ -1170,8 +1203,16 @@ export class Panel
         this.mouse = p;
 
         const hoverItem = this.paletteItemAt (p), hb = ! hoverItem && inside (FIELD, p) ? this.blockAt (p) : null;
-        const hk = hoverItem ? hoverItem.kind : hb ? hb.kind : null;
-        if (hk !== this.hoverKind) { this.hoverKind = hk; this.hoverSince = performance.now(); }
+        const key = hoverItem ? 'p' + hoverItem.kind : hb ? 'b' + hb.id : null;
+        if (key !== this.hoverKey)
+        {
+            // new hover: a fresh tooltip
+            this.hoverKey = key;
+            this.hoverKind = hoverItem ? hoverItem.kind : hb ? hb.kind : null;
+            this.hoverSince = performance.now();
+            this.tipAt = null;
+            this.tipDone = false;
+        }
 
         const d = this.drag;
         if (! d) return;
